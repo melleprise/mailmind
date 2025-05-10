@@ -1,0 +1,14 @@
+[
+  {
+    "model": "core.prompttemplate",
+    "pk": 1, 
+    "fields": {
+      "name": "suggest_folder_structure",
+      "description": "Suggests a hierarchical folder structure based on email subjects and current folders.",
+      "template": "Based on the following list of email subjects and their current folders, suggest a hierarchical folder structure \n(maximum 3 levels deep) that would organize these emails effectively. \nRespond ONLY with a JSON object representing the folder structure. \nEach key should be a folder name, and the value can be either null (for an empty folder/endpoint) \nor another JSON object representing subfolders.\nExample: {{ \"Work\": {{ \"Project A\": null, \"Reports\": {{ \"Q1\": null }} }}, \"Personal\": null }}\n\nEmail list:\n{{email_list_str}}",
+      "provider": "generic", 
+      "model_name": "default",
+      "is_active": true
+    }
+  }
+] 

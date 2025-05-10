@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1.4
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_CACHE_DIR=/root/.cache/pip \
+    HF_HOME=/root/.cache/huggingface
+
+WORKDIR /app
+
+# Install system dependencies with cache mount
+RUN --mount=type=cache,target=/var/cache/apt apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    postgresql-client \
+    httpie \
+    tesseract-ocr \
+    tesseract-ocr-deu \
+    tesseract-ocr-eng \
+    # Add other necessary system dependencies here if needed (like libmagic1 etc.)
+    && rm -rf /var/lib/apt/lists/*
+
+# Upgrade pip
+RUN pip install --upgrade pip
+
+# Install minimal dependencies needed for model download first
+# Use cache mount for efficiency
+RUN --mount=type=cache,target=/root/.cache/pip pip install torch==2.6.0 sentence-transformers==4.1.0
+
+# Download the Sentence Transformer model during build
+# This layer will be cached as long as torch/sentence-transformers versions don't change
+# Ensure sentence-transformers is in requirements.txt (already checked)
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
+
+# Copy requirements file AFTER model download
+COPY backend/requirements.txt /app/requirements.txt
+
+# Install the REST of Python dependencies using the requirements file
+# This will use the pip cache and re-install only if requirements.txt changed
+RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
+
+# Copy the rest of the application code
+COPY backend/ /app/
+
+# Download ML models during image build (auskommentiert, da über Volume zur Laufzeit gecacht)
+# Dieser Schritt nutzt den gleichen Cache wie pip (--mount)
+# um die Modelle zwischen Builds zu cachen.
+# Der Cache wird normalerweise unter /root/.cache/huggingface oder /root/.cache/torch liegen
+# RUN --mount=type=cache,target=/root/.cache python /app/download_models.py
+
+# Kopiere die Entrypoint-Scripts
+COPY docker/backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/backend/docker-entrypoint-worker.sh /usr/local/bin/docker-entrypoint-worker.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh /usr/local/bin/docker-entrypoint-worker.sh
+
+EXPOSE 8000
+
+# Standard CMD to run the server (wird durch entrypoint in docker-compose überschrieben)
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"] 

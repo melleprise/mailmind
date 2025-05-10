@@ -1,0 +1,326 @@
+#version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.dev
+    image: mailmind/backend-dev:latest
+    container_name: mailmind-dev-backend
+    entrypoint: /usr/local/bin/docker-entrypoint.sh
+    volumes:
+      - ./backend:/app
+      - pip-cache:/root/.cache/pip
+      - ./model-cache:/root/.cache/torch/sentence_transformers
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.development
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.development
+      - DJANGO_DEBUG=True
+      - PYTHONUNBUFFERED=1
+      - USE_DOCKER=yes
+      - SENTENCE_TRANSFORMERS_HOME=/root/.cache/torch/sentence_transformers
+      - EMAIL_ACCOUNT_ENCRYPTION_KEY=8wLZg7gLrPMp6TQQCPV676Pj5mYEIzVwbu9nhubnAnw=
+    networks:
+      - mailmind-dev-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+        reservations:
+          cpus: '1'
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.dev
+    image: mailmind/backend-dev:latest
+    container_name: mailmind-dev-worker
+    entrypoint: /usr/local/bin/docker-entrypoint-worker.sh
+    volumes:
+      - ./backend:/app
+      - pip-cache:/root/.cache/pip
+      - ./model-cache:/root/.cache/torch/sentence_transformers
+    shm_size: '4gb'
+    env_file:
+      - .env.development
+    depends_on:
+      backend:
+        condition: service_started
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.development
+      - PYTHONUNBUFFERED=1
+      - SENTENCE_TRANSFORMERS_HOME=/root/.cache/torch/sentence_transformers
+      - LOAD_AI_MODELS=true
+      - EMAIL_ACCOUNT_ENCRYPTION_KEY=8wLZg7gLrPMp6TQQCPV676Pj5mYEIzVwbu9nhubnAnw=
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    networks:
+      - mailmind-dev-network
+    deploy:
+      resources:
+        limits:
+          memory: 20G
+          cpus: '2'
+        reservations:
+          cpus: '1'
+    command: python manage.py qcluster --workers 1
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile.dev
+      args:
+        NODE_ENV: development
+    container_name: mailmind-dev-frontend
+    volumes:
+      - ./frontend:/app:cached
+      # - node_modules_volume:/app/node_modules # Auskommentiert
+      - build-cache:/app/build:delegated
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000
+      - VITE_AUTH_URL=http://localhost:8000/auth
+      - NODE_OPTIONS=--max-old-space-size=8192
+      - GENERATE_SOURCEMAP=false
+      - CHOKIDAR_USEPOLLING=true
+      - TSC_COMPILE_ON_ERROR=true
+      - DISABLE_ESLINT_PLUGIN=true
+      - DISABLE_TYPESCRIPT=true
+      - WDS_SOCKET_PORT=0
+      - WATCHPACK_POLLING=true
+      - HOST=0.0.0.0
+      - PORT=8080
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1'
+        reservations:
+          memory: 1G
+          cpus: '1'
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - mailmind-dev-network
+    # command: pnpm run dev # Temporär auskommentiert für Debugging
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: mailmind-dev-postgres
+    environment:
+      - POSTGRES_DB=mailmind
+      - POSTGRES_USER=mailmind
+      - POSTGRES_PASSWORD=mailmind
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - mailmind-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mailmind"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: mailmind-dev-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - mailmind-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: mailmind-dev-qdrant
+    volumes:
+      - qdrant_data_dev:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    networks:
+      - mailmind-dev-network
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: mailmind-dev-caddy
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data_dev:/data
+      - caddy_config_dev:/config
+      - ./static:/static
+      - ./media:/media
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - mailmind-dev-network
+
+  playwright-login:
+    build:
+      context: ./docker/playwright-login
+    container_name: mailmind-dev-playwright-login
+    ports:
+      - "3000:3000"
+    volumes:
+      - crawl4ai_cookies:/cookies
+    networks:
+      - mailmind-dev-network
+
+  crawl4ai:
+    build:
+      context: ./crawl4ai
+      dockerfile: Dockerfile.custom
+    container_name: mailmind-dev-crawl4ai
+    platform: linux/amd64
+    ports:
+      - "11235:11235"
+    volumes:
+      - ./crawl4ai/server.py:/app/server.py
+      - ./crawl4ai:/app/crawl4ai
+      - ./backend/mailmind:/app/backend/mailmind:ro
+      - crawl4ai_cookies:/cookies
+    environment:
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-=ff+q1-)v2=1kk92^*x0v3o4c)wnaj1vrvz*(u83sb=st!sj7d}
+      - BACKEND_API_URL=http://backend:8000
+    depends_on:
+      - backend
+      - playwright-login
+    networks:
+      - mailmind-dev-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11235/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # prometheus:
+  #   image: prom/prometheus:latest
+  #   container_name: mailmind-dev-prometheus
+  #   volumes:
+  #     - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+  #     - prometheus_data_dev:/prometheus
+  #   ports:
+  #     - "9090:9090"
+  #   command:
+  #     - '--config.file=/etc/prometheus/prometheus.yml'
+  #     - '--storage.tsdb.path=/prometheus'
+  #     - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+  #     - '--web.console.templates=/usr/share/prometheus/consoles'
+  #   networks:
+  #     - mailmind-dev-network
+
+  # grafana:
+  #   image: grafana/grafana:latest
+  #   container_name: mailmind-dev-grafana
+  #   volumes:
+  #     - grafana_data_dev:/var/lib/grafana
+  #   environment:
+  #     GF_SECURITY_ADMIN_USER: admin
+  #     GF_SECURITY_ADMIN_PASSWORD: admin
+  #   ports:
+  #     - "3001:3000"
+  #   # depends_on:
+  #   #   - prometheus # Abhängigkeit entfernt
+  #   networks:
+  #     - mailmind-dev-network
+
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: mailmind-dev-pgadmin
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@admin.com
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #   ports:
+  #     - "5050:80"
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   depends_on:
+  #     - postgres
+  #   networks:
+  #     - mailmind-dev-network
+
+  # Neuer Service für RQ Dashboard
+  # rq_dashboard:
+  #   image: mailmind/backend-dev:latest # Verwende das gleiche Image wie backend/worker
+  #   container_name: mailmind-dev-rq-dashboard
+  #   # Installiert rq-dashboard und startet es, verbunden mit dem Redis-Service
+  #   # Explizit den Dashboard-Port (-p 9181) und die Redis-URL (-u) angeben.
+  #   command: sh -c "pip install rq-dashboard && rq-dashboard -p 9181 -u redis://redis:6379/0 --interval 15000"
+  #   ports:
+  #     - "9181:9181" # Standard-Port für rq-dashboard
+  #   environment:
+  #     RQ_PREFIX: "django_q:" # Wert explizit quoten
+  #   depends_on:
+  #     backend:
+  #       condition: service_started
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - mailmind-dev-network
+  #   restart: unless-stopped
+
+volumes:
+  # node_modules_volume: {} # Auskommentiert
+  pip-cache:
+    name: mailmind-dev-pip-cache
+  venv:
+    name: mailmind-dev-venv
+  postgres_data:
+    name: mailmind-dev-postgres-data
+  # prometheus_data_dev: # Auskommentiert
+  #   name: mailmind-dev-prometheus-data
+  # grafana_data_dev: # Auskommentiert
+  #   name: mailmind-dev-grafana-data
+  qdrant_data_dev:
+    name: mailmind-dev-qdrant-data
+  caddy_data_dev:
+    name: mailmind-dev-caddy-data
+  caddy_config_dev:
+    name: mailmind-dev-caddy-config
+  # pgadmin_data: # Auskommentiert
+  #   name: mailmind-dev-pgadmin-data
+  build-cache:
+    name: mailmind-dev-build-cache
+    driver: local
+  playwright-cookies:
+    name: playwright-cookies
+  playwright-cache:
+  pg_data:
+  mailmind_crawl:
+  redis_data:
+  crawl4ai_cookies:
+
+networks:
+  mailmind-dev-network:
+    name: mailmind-dev-network
+    driver: bridge 

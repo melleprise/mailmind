@@ -1,0 +1,5 @@
+FROM unclecode/crawl4ai:latest
+
+USER root
+RUN playwright install --with-deps
+USER appuser 

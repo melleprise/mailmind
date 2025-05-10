@@ -1,0 +1,116 @@
+{
+    debug
+}
+
+crawl4ai.localhost {
+    reverse_proxy crawl4ai:11235
+}
+
+:80 {
+    log {
+        format json
+        level DEBUG # Debug Logging aktivieren
+    }
+
+    # WebSocket handling first
+    handle /ws/* {
+        reverse_proxy backend:8000
+    }
+
+    # Combined API handler
+    handle /api/* {
+        reverse_proxy backend:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Forwarded-Host {host}
+            # header_up Authorization {header.Authorization} # Auskommentiert
+        }
+    }
+
+    # Auskommentiert, da /api/* dies abdecken sollte
+    # handle /auth/* {
+    #     reverse_proxy backend:8000
+    # }
+
+    # Auskommentiert, da /admin/* auch über /api/* geroutet werden könnte (oder eigene Regel braucht)
+    # handle /admin/* {
+    #     reverse_proxy backend:8000
+    # }
+    
+    # Statische/Medien-Dateien: Besser über root/file_server oder spezifische API-Endpunkte bedienen
+    # handle /static/* {
+    #     reverse_proxy backend:8000
+    # }
+    # handle /media/* {
+    #     reverse_proxy backend:8000
+    # }
+
+    # General frontend handler (last)
+    handle {
+        reverse_proxy frontend:8080
+    }
+
+    # Admin interface
+    handle /admin/* {
+        reverse_proxy backend:8000
+    }
+    
+    # Static files needed by admin etc.
+    handle /static/* {
+        reverse_proxy backend:8000
+    }
+}
+
+# Automatische HTTPS-Umleitung
+:443 {
+    tls internal {
+        on_demand
+    }
+    
+    log {
+        format json
+        level DEBUG # Debug Logging aktivieren
+    }
+
+    # WebSocket handling first
+    handle /ws/* {
+        reverse_proxy backend:8000
+    }
+
+    # Combined API handler
+    handle /api/* {
+        reverse_proxy backend:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Forwarded-Host {host}
+            # header_up Authorization {header.Authorization} # Auskommentiert
+        }
+    }
+    
+    # Auskommentiert
+    # handle /auth/* {
+    #     reverse_proxy backend:8000
+    # }
+    # handle /admin/* {
+    #     reverse_proxy backend:8000
+    # }
+    # handle /static/* {
+    #     reverse_proxy backend:8000
+    # }
+    # handle /media/* {
+    #     reverse_proxy backend:8000
+    # }
+
+    # General frontend handler (last)
+    handle {
+        reverse_proxy frontend:8080
+    }
+
+    # Admin interface
+    handle /admin/* {
+        reverse_proxy backend:8000
+    }
+    
+    # Static files needed by admin etc.
+    handle /static/* {
+        reverse_proxy backend:8000
+    }
+}

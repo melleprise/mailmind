@@ -1,0 +1,245 @@
+Projektplan: AI E-Mail Assistant - Version 1.0
+
+1. Einleitung & Vision
+
+Projektname: AI E-Mail Assistant (Codename: MailMind - Vorschlag)
+
+Vision: Ein intelligenter Assistent, der Nutzern hilft, ihre E-Mail-Kommunikation effizienter zu gestalten, indem er eingehende Nachrichten analysiert, relevante Kontextinformationen bereitstellt und passende Antwortvorschläge oder Aktionen generiert.
+
+Ziel Version 1.0: Erstellung eines funktionierenden Minimum Viable Product (MVP), das die Kernfunktionen (E-Mail-Empfang, AI-Vorschläge, manuelle Bestätigung) für einen einzelnen Nutzer (den Entwickler selbst) bereitstellt, mit Fokus auf einer soliden technischen Basis für zukünftige Erweiterungen.
+
+2. Projektziele & Scope (Version 1.0)
+
+Ziele:
+
+Sichere Authentifizierung und Verwaltung eines E-Mail-Kontos (IMAP/OAuth2).
+
+Zuverlässiger Empfang neuer E-Mails via IMAP IDLE (mit Polling Fallback).
+
+Integration eines externen LLMs (Llama 3 8B via Groq) zur Generierung von 3 Aktions-/Antwortvorschlägen.
+
+Einbindung von Kontext (E-Mail-Text, Anhänge via OCR/Image-Embeddings, Allgemeine Anweisungen) in die AI-Vorschläge.
+
+Intuitive Benutzeroberfläche (Web) zur Anzeige von E-Mails und AI-Vorschlägen mit "Tinder-Style"-Feedback (Akzeptieren/Verfeinern/Ignorieren).
+
+Implementierung einer "Pending Emails"-Pipeline für zur Sendung vorgemerkte Antworten.
+
+Grundlegendes Auditing von Aktionen.
+
+Stabile und wartbare Infrastruktur auf einem Hetzner-Server mit Docker.
+
+Out of Scope für Version 1.0 (Explizit verschoben auf V2+):
+
+Unterstützung mehrerer Nutzer (Multi-Tenancy).
+
+Komplexe Priorisierung von E-Mails/Aufgaben.
+
+Komplexe/Strukturierte Regel-Engine & Freitext-Regel-Parsing.
+
+Virenscan (ClamAV).
+
+DSGVO-Features für Endnutzer (Datenexport, Account-Löschung).
+
+Push-Notifications.
+
+Sprachverfeinerung im Frontend.
+
+Offline-Support.
+
+Favoriten-Funktion.
+
+Mobile Native App.
+
+Kalender-Integration.
+
+AI-Erklärungen für Vorschläge.
+
+Vollautomatische Aktionen (ohne Nutzerbestätigung).
+
+Detaillierte Statistiken & KPIs.
+
+3. Zielgruppe (Version 1.0)
+
+Primär: Der Entwickler selbst (für Test und Eigengebrauch).
+
+Sekundär: Vorbereitung für eine spätere Erweiterung auf technisch versierte Early Adopters.
+
+4. High-Level Architektur (Übersicht)
+
+Frontend: React SPA (MUI, Zustand) kommuniziert via REST/WebSockets mit Backend.
+
+Backend: Django (ASGI) mit REST-API (DRF) und WebSocket-Handling (Channels). Nutzt Django-Q für Hintergrundtasks.
+
+AI-Service: Externe LLM-API (Groq). Lokale Modelle für Embeddings (CLIP) und OCR (Tesseract).
+
+IMAP-Handler: Dedizierter Django Channels Consumer pro Konto für IMAP IDLE / Polling.
+
+Datenbanken: PostgreSQL (Metadaten, User, Regeln etc.), Qdrant (Vektor-Embeddings).
+
+Infrastruktur: Docker-Container auf Hetzner-Server, Caddy als Reverse Proxy.
+
+5. Detaillierte Feature-Aufgaben & Priorisierung (Version 1.0)
+
+Prioritäten: P0 = Kritisch (Ohne geht nichts), P1 = Hoch (Kernfunktion V1), P2 = Mittel (Wichtig für Usability V1), P3 = Niedrig (Nice-to-have V1)
+
+Bereich	Aufgabe	Priorität	Geschätzte Komplexität	Anmerkungen / Akzeptanzkriterien
+Setup & Infra	Basis-Server-Setup (Hetzner, OS, Docker, Caddy)	P0	S	Server erreichbar, Docker & Caddy laufen.
+	Projekt-Initialisierung (Django, React)	P0	S	Grundstrukturen für Backend & Frontend vorhanden.
+	GitHub Repository & Basis CI/CD (GitHub Actions für Build/Linting)	P0	M	Code in Git, automatische Checks bei Push.
+	Dockerfiles (Backend, Frontend) & docker-compose.yml	P0	M	Applikation kann lokal mit docker-compose up gestartet werden.
+	PostgreSQL & Qdrant Setup (in Docker)	P0	S	Datenbanken laufen und sind vom Backend erreichbar.
+	Grundlegendes Monitoring Setup (Prometheus/Grafana Container)	P2	M	Basis-Metriken (CPU, RAM) des Servers und der Container sichtbar.
+Backend: Core	User Model & Basis-Authentifizierung (Django Standard)	P0	S	Login über Django Admin möglich.
+	E-Mail Account Model (Speicherung von IMAP Credentials/Tokens)	P0	M	Sichere Speicherung der Zugangsdaten (verschlüsselt).
+	REST API für Konto-Verwaltung (Hinzufügen via OAuth2/Passwort, Löschen)	P1	L	Frontend kann Konten verbinden/trennen. OAuth2-Flow für Google implementiert.
+	Django-Q Setup (DB-Backend initial)	P1	S	Hintergrundtasks können erstellt und ausgeführt werden.
+	API-Key Management (Speicherung Groq Keys: Server + User)	P1	M	Keys sicher speichern, korrekten Key auswählen.
+	Pydantic Modelle für Validierung (Regeln, API-Antworten)	P1	M	Datenstrukturen klar definiert und validiert.
+	Audit Log Model & Basis-Logging-Funktion	P1	M	Definierte Events werden in audit_log_entries gespeichert.
+	Kontakte Model & automatische Extraktion	P2	M	E-Mail-Adressen werden aus Mails extrahiert und in contacts gespeichert/aktualisiert.
+	Allgemeine Anweisungen Model & API (Speichern/Abrufen Textblock)	P1	S	Nutzer kann allgemeinen Anweisungstext speichern/ändern.
+Backend: IMAP	IMAP Client Library Integration (z.B. aioimaplib)	P0	M	Verbindung zu IMAP-Server (Login) möglich.
+	IMAP Channels Consumer (Verbindung halten, Reconnect-Logik)	P1	L	Prozess läuft stabil, hält Verbindung, versucht Reconnect bei Fehler.
+	IMAP IDLE Implementierung	P1	L	Consumer reagiert auf IDLE-Benachrichtigungen.
+	Polling Fallback Implementierung (via Django-Q Task)	P1	M	Periodisches Polling als Task implementiert, schaltet bei Bedarf ein.
+	E-Mail Fetching Logik (Abruf neuer Mails, Markieren als gelesen)	P1	M	Neue Mails werden abgerufen und in DB gespeichert (Metadaten).
+	Attachment Download & Speicherung (temporär/permanent)	P1	M	Anhänge werden heruntergeladen und zugänglich gemacht für weitere Verarbeitung.
+Backend: AI & Workflow	Tesseract OCR Integration (DE/EN)	P1	M	OCR für Anhänge (Bilder, PDFs) funktioniert, Text wird extrahiert.
+	Lokale Image Embedding Integration (CLIP/openclip via SentenceTransformers)	P1	L	Bilder aus Anhängen werden in Embeddings umgewandelt und in Qdrant gespeichert (mit Metadaten).
+	Lokale Text Embedding Integration (SentenceTransformers)	P1	L	E-Mail-Texte (inkl. OCR) werden in Embeddings umgewandelt und in Qdrant gespeichert (mit Metadaten).
+	Groq API Client Integration (Llama 3 8B)	P1	M	Aufrufe an Groq API mit korrektem Key und Parametern möglich.
+	"Triage Agent" Logik (Einfache Klassifizierung/Spam-Check)	P1	M	Grobe Einschätzung der Mail (Spam, Frage, Info) erfolgt (Heuristik / einfacher LLM-Call).
+	Prompt Engineering für Vorschlagsgenerierung	P1	L	Prompts für Llama 3 8B (inkl. Kontext: Mail, Embeddings?, Anweisungen) liefern 3 sinnvolle Vorschläge (Antwort/Aktion).
+	"Reply/Action Agent" Logik (Vorschläge generieren basierend auf Triage)	P1	L	Generiert basierend auf Triage-Ergebnis und Kontext passende Vorschläge über LLM.
+	Pending Emails Pipeline (Speichern/Verwalten/Senden von Mails)	P1	M	Akzeptierte Vorschläge können zum Senden vorgemerkt und später (manuell/automatisch) versendet werden.
+Frontend	Basis-Layout (Sidebar, Hauptbereich), Routing	P0	M	Navigation zwischen den Hauptseiten funktioniert.
+	Login-Seite UI & Logik (inkl. Google OAuth)	P1	M	Nutzer kann sich anmelden.
+	E-Mail-Liste UI (Anzeige, Auswahl, Sortierung V1: Chronologisch)	P1	M	Liste der Mails wird korrekt angezeigt, Auswahl funktioniert.
+	E-Mail Detailansicht UI (Anzeige Header, Body, Anhänge)	P1	M	Ausgewählte Mail wird vollständig angezeigt.
+	AI Vorschlags-UI (Anzeige 3 Vorschläge)	P1	M	Die 3 Vorschläge werden klar dargestellt.
+	Interaktions-Buttons (Nutzen, Verfeinern, Ignorieren) & Logik	P1	M	Buttons funktionieren, lösen korrekte Backend-Aktionen aus.
+	Refining Prompt UI & Logik (Texteingabe, Senden)	P1	M	Nutzer kann Vorschlag bearbeiten und senden.
+	Pending Emails Ansicht UI & Logik (Liste, Bearbeiten, Senden, Abbrechen)	P1	L	Nutzer kann vorgemerkte Mails verwalten.
+	Audit Log Ansicht UI (Anzeige der Log-Einträge)	P2	M	Audit-Log wird lesbar angezeigt.
+	Statistik Ansicht UI (Anzeige Basis-KPIs)	P3	S	Einfache Statistiken aus Audit Log werden angezeigt.
+	Einstellungen UI & Logik (Konten, API-Keys, Allg. Anweisungen)	P1	L	Nutzer kann Konten verwalten, Key eingeben, Anweisungen speichern.
+	UI Notifications (Toasts für Erfolg/Fehler)	P2	S	Feedback an den Nutzer über Aktionen.
+	Dark Mode	P2	M	Umschalten zwischen Light/Dark Mode funktioniert.
+	Internationalisierung (i18n) Setup (react-i18next, DE/EN)	P2	M	Texte sind übersetzbar, Umschaltung DE/EN funktioniert.
+
+6. Technologie Stack (Zusammenfassung)
+
+Backend: Python, Django (>=3.0, ASGI), Django Channels, Django-Q, Django REST Framework, Pydantic, aioimaplib (o.ä.), SentenceTransformers, Transformers (für CLIP), python-tesseract.
+
+Frontend: JavaScript/TypeScript, React, Material UI (MUI), Zustand, react-i18next.
+
+Datenbanken: PostgreSQL (>=12), Qdrant.
+
+AI Service: Groq API (Llama 3 8B).
+
+Infrastruktur: Linux (Debian/Ubuntu auf Hetzner), Docker, Docker Compose, Caddy, Git, GitHub Actions.
+
+Monitoring: Prometheus, Grafana.
+
+7. Entwicklungsprozess & Workflow
+
+Methodik: Agil (z.B. Kanban oder Scrum mit kurzen Sprints), angepasst an Teamgröße.
+
+Source Control: Git (GitHub).
+
+Branching Model: Gitflow (oder vereinfachtes GitHub Flow). Feature-Branches für jede Aufgabe, Pull Requests (PRs) für Merges nach main/develop.
+
+Code Reviews: Obligatorisch für alle PRs (mindestens ein Reviewer).
+
+CI/CD: GitHub Actions für Linting, Testing, Docker Image Builds und (später) automatisiertes Deployment auf Staging/Production.
+
+Task Management: GitHub Issues/Projects oder dediziertes Tool (Jira, Trello).
+
+8. Team & Rollen (Konzeptuell)
+
+Auch wenn initial nur eine Person: Gedankliche Aufteilung hilft.
+
+Backend Entwickler: Django, API, Datenbanken, Task Queue, IMAP Logic.
+
+Frontend Entwickler: React, MUI, State Management, UI/UX.
+
+AI/ML Engineer: Prompt Engineering, Embedding Integration, OCR, Qdrant Nutzung.
+
+DevOps/Infra: Server Setup, Docker, CI/CD, Monitoring.
+
+QA/Tester: Manueller Test, Testautomatisierung (später).
+
+Dokumentation: Alle.
+
+9. Infrastruktur & Deployment Plan (Version 1.0)
+
+Hosting: 1x Hetzner Cloud Server (CPX21: 2 vCPU, 4 GB RAM - Ressourcen-Monitoring kritisch!).
+
+Setup: Manuell dokumentiertes Setup (Basis-OS, Docker, Caddy). Später evtl. Ansible/Terraform.
+
+Container: Docker für alle Komponenten (Backend, Frontend-Build, DBs, Qdrant, Monitoring).
+
+Netzwerk: Caddy als Reverse Proxy (HTTPS automatisch via Let's Encrypt).
+
+Deployment V1: Manuell via docker-compose pull && docker-compose up -d auf dem Server, getriggert nach erfolgreichem CI Build.
+
+Secrets Management: Umgebungsvariablen via Docker Compose (lokal/Server) oder sicherere Methode prüfen.
+
+10. Testing Strategie (Version 1.0)
+
+Unit Tests (Backend): Pytest. Fokus auf Business-Logik, Util-Funktionen, API-Serializers.
+
+Integration Tests (Backend): Pytest mit Datenbank-Fixtures. Testen von API-Endpunkten, Task-Ausführung, DB-Interaktionen. IMAP-Interaktion mocken oder gegen Test-Account.
+
+Unit/Component Tests (Frontend): Jest, React Testing Library. Testen einzelner Komponenten und State-Logik.
+
+End-to-End (E2E) Tests: Manuell für V1. Fokus auf den Kern-Workflow (Login -> Mail sehen -> Vorschlag bekommen -> Aktion ausführen).
+
+AI-Qualitätstests: Manuell/Explorativ. Bewertung der Sinnhaftigkeit der Vorschläge in verschiedenen Szenarien.
+
+Infrastruktur-Tests: Sicherstellen, dass alle Docker-Container korrekt starten und kommunizieren.
+
+11. Dokumentationsplan (Version 1.0)
+
+Code-Kommentare: Wichtige/komplexe Code-Abschnitte erklären. Docstrings für Funktionen/Klassen.
+
+README.md: Im Root-Verzeichnis: Projektübersicht, Setup-Anleitung für lokale Entwicklung, Deployment-Hinweise.
+
+Architektur-Dokumentation: High-Level-Diagramm und Beschreibung der Komponenten und ihres Zusammenspiels (kann dieses Dokument sein).
+
+API-Dokumentation: Automatisch generiert via DRF/Swagger (oder ähnliches) für die REST-API.
+
+Setup/Deployment Guide: Detaillierte Schritte für Server-Setup und Deployment (wichtig für manuelles Setup).
+
+Dokumentation während der Entwicklung erstellen, nicht danach!
+
+12. Release Plan (Version 1.0)
+
+Release-Kriterien: Alle P0 und P1 Aufgaben abgeschlossen und getestet. Kern-Workflow stabil. Keine Blocker-Bugs. Basis-Dokumentation vorhanden.
+
+Deployment: Manuelles Deployment auf den Hetzner-Server.
+
+Post-Release: Monitoring beobachten, Bugfixing.
+
+13. Risiken & Mitigation (Version 1.0)
+
+Risiko	Wahrscheinlichkeit	Auswirkung	Mitigation
+Server-Ressourcen (4GB RAM) nicht ausreichend	Mittel	Hoch	Monitoring! Frühzeitig Engpässe erkennen. Ggf. Server-Upgrade. Optimierung (Quantisierung Embeddings, Qdrant-Settings).
+IMAP IDLE Instabilität/Inkompatibilität	Mittel	Mittel	Implementierung des robusten Polling-Fallbacks. Gutes Fehlerhandling und Reconnect-Logik.
+AI-Qualität (Vorschläge) unzureichend	Mittel	Hoch	Iteratives Prompt Engineering. Testen mit verschiedenen Szenarien. Möglichkeit für Nutzer (Entwickler), globale Anweisungen anzupassen.
+API Key Sicherheit (Groq)	Niedrig/Mittel	Hoch	Sichere Speicherung (nicht im Code!), Zugriff beschränken. Umgebungsvariablen nutzen.
+OCR/Embedding Qualität unzureichend	Mittel	Mittel	Akzeptieren für V1, wenn grundlegend funktioniert. Optimierung (Preprocessing, andere Modelle) für V2.
+Scope Creep	Mittel	Mittel	Strikte Einhaltung des V1-Scopes. Features klar für V2 backloggen.
+Bus Factor (Einzelentwickler)	Hoch	Hoch	Gute Dokumentation! Code-Qualität hochhalten. Standard-Technologien verwenden.
+
+14. Zukünftige Betrachtungen (V2+ Backlog)
+
+Alle unter "Out of Scope für Version 1.0" genannten Punkte.
+
+Performance-Optimierungen (DB-Indizes, Caching, asynchrone Verarbeitung).
+
+Verbesserte Testautomatisierung (E2E Tests).
+
+Infrastructure as Code (Ansible/Terraform).
+
+Erweiterte AI-Fähigkeiten (z.B. Feinabstimmung von Modellen, komplexere Agenten).

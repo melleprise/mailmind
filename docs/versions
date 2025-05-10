@@ -1,0 +1,3 @@
+versions (gitcommits)
+Before parallelizing email fetching within folders: f9055b020b8693bd02477b0f42057c072b5f00c3
+After fixing indentation error in core views: 4d794eea40362bbe7d5cf989e84b8acdd87f5b50

@@ -1,0 +1,77 @@
+/* Styles for Markdown output in EmailContent.tsx */
+
+.markdown-output {
+    color: white;
+    font-family: 'Ubuntu', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-weight: 400;
+    font-size: 1rem;
+    line-height: 1.6;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+/* Absätze, Listen, etc. */
+.markdown-output p,
+.markdown-output li,
+.markdown-output ul,
+.markdown-output ol,
+.markdown-output blockquote {
+    font-size: 1em;
+    line-height: 1.6;
+    margin-bottom: 0.8em;
+}
+
+/* Überschriften */
+.markdown-output h1 { font-size: 1em; margin-bottom: 0.5em; }
+.markdown-output h2 { font-size: 1em; margin-bottom: 0.5em; }
+.markdown-output h3,
+.markdown-output h4,
+.markdown-output h5,
+.markdown-output h6 { font-size: 1em; margin-bottom: 0.5em; }
+
+/* Links - Farbe wie Logo, kein Hover/Visited-Unterschied */
+.markdown-output a,
+.markdown-output a:visited,
+.markdown-output a:hover {
+    color: #be85ff; /* MailMind Logo Farbe (Dark Theme Primary) */
+    text-decoration: underline;
+    transition: none;
+}
+
+/* Code-Blöcke */
+ .markdown-output pre {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 1em;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.9em;
+    margin-bottom: 1em;
+ }
+ .markdown-output code {
+     font-family: 'Ubuntu Mono', Consolas, 'Courier New', monospace;
+     font-size: 0.9em;
+     background-color: rgba(255, 255, 255, 0.1);
+     padding: 0.2em 0.4em;
+     border-radius: 3px;
+ }
+ .markdown-output pre code {
+     background-color: transparent;
+     padding: 0;
+     border-radius: 0;
+ }
+
+/* Blockquotes */
+ .markdown-output blockquote {
+    border-left: 4px solid rgba(255, 255, 255, 0.5);
+    padding-left: 1em;
+    margin-left: 0;
+    font-style: italic;
+    color: rgba(255, 255, 255, 0.8);
+ }
+
+ /* Horizontale Linien */
+ .markdown-output hr {
+    border: none;
+    border-top: 1px solid rgba(255, 255, 255, 0.3);
+    margin: 2em 0;
+ } 

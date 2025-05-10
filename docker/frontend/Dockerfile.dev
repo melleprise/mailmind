@@ -1,0 +1,60 @@
+# syntax=docker/dockerfile:1.4
+FROM --platform=linux/arm64 node:18-bullseye
+
+# Install build dependencies using apt-get for Debian-based image
+# Also install yarn
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ yarn && rm -rf /var/lib/apt/lists/*
+
+# Remove corepack and pnpm setup
+# RUN corepack enable && \
+#    corepack prepare pnpm@latest --activate
+
+# Set environment variables
+ENV NODE_ENV=development \
+    PORT=8080 \
+    VITE_API_URL=http://localhost:8000 \
+    # Remove pnpm related env vars
+    # DISABLE_ROLLUP_NATIVE=true \
+    # ROLLUP_NATIVE=false \
+    # ROLLUP_SKIP_NATIVE=true \
+    NODE_OPTIONS='--no-experimental-fetch'
+
+# Create directories with correct permissions
+# Remove pnpm specific dirs
+RUN mkdir -p /app/node_modules && \
+    chown -R node:node /app
+
+# Set working directory
+WORKDIR /app
+
+# Copy package.json and package-lock.json first to leverage Docker cache
+USER root
+COPY --chown=node:node package.json package-lock.json* ./
+
+# Clean up node_modules *before* install if it exists from a previous incomplete build or mount
+# This helps avoid potential issues with stale dependencies
+# RUN rm -rf node_modules 
+
+# Install dependencies with cache mount. This layer is cached if package files haven't changed.
+# Use --mount=type=cache for npm cache
+RUN --mount=type=cache,target=/home/node/.npm npm install --fetch-timeout=600000 --legacy-peer-deps
+
+# Now copy the rest of the application code. This layer will be rebuilt on code changes.
+COPY --chown=node:node . .
+
+# Ensure the node user owns the entire app directory after all copying and installation
+RUN chown -R node:node /app
+
+# Add entrypoint script
+# Switch back to root to copy and set permissions
+USER root
+COPY --chown=node:node docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Set user back to node
+USER node
+
+EXPOSE 8080
+
+# Change CMD to ENTRYPOINT
+ENTRYPOINT ["docker-entrypoint.sh"]

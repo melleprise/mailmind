@@ -1,0 +1,42 @@
+# Use Python 3.11 slim image
+FROM --platform=linux/arm64/v8 python:3.11-slim
+
+# Enable BuildKit caching
+ENV PIP_NO_CACHE_DIR=false
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_CACHE_DIR=/root/.cache/pip
+
+WORKDIR /app
+
+# Install system dependencies with cache mount
+RUN --mount=type=cache,target=/var/cache/apt apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    httpie \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements file
+COPY requirements.txt .
+
+# Update pip before installing requirements
+RUN pip install --upgrade pip
+
+# Install Python dependencies without build cache mount
+RUN pip install -r requirements.txt
+
+# Copy the download script
+COPY download_models.py .
+
+# Set the cache directory environment variable BEFORE running the script
+ENV SENTENCE_TRANSFORMERS_HOME=/root/.cache/torch/sentence_transformers
+
+# Run the download script to cache models during build
+# This requires network access during the build
+RUN python download_models.py
+
+# Don't copy project files - they will be mounted as a volume
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"] 

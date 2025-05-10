@@ -1,0 +1,125 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Free up disk space
+      - name: Free Disk Space (Ubuntu)
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune -af
+          df -h
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Cache pip packages
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+            env.BUILDKIT_STEP_LOG_MAX_SIZE=10000000
+            env.BUILDKIT_STEP_LOG_MAX_SPEED=10000000
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+          # Limit the cache size
+          max-size: 5GB
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # Clean up old cache before building
+      - name: Clean old cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mkdir -p /tmp/.buildx-cache
+
+      - name: Build and push test image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/mailmind-test:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max,compression=zstd
+          progress: plain
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+            BUILDKIT_DEBUG=1
+
+      # Modified cache move to handle potential space issues
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache || true
+
+      - name: Deploy to server
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H 91.99.73.203 >> ~/.ssh/known_hosts
+          
+          # Create deployment script
+          cat << 'EOF' > deploy.sh
+          #!/bin/bash
+          set -e
+          
+          export DOCKER_HUB_USERNAME="${1}"
+          cd /root/email-ai-tinder
+          
+          # Update code
+          git fetch --all
+          git reset --hard origin/main
+          
+          # Pull new images
+          docker pull ${DOCKER_HUB_USERNAME}/mailmind-test:latest
+          
+          # Stop and remove existing containers
+          docker-compose -f docker-compose.prod.yml down --remove-orphans
+          
+          # Set environment variable and start new containers
+          export DOCKER_HUB_USERNAME="${DOCKER_HUB_USERNAME}"
+          docker-compose -f docker-compose.prod.yml up -d
+          
+          echo "Deployment completed. Containers restarted."
+          EOF
+          
+          # Copy and execute deployment script
+          scp -i ~/.ssh/id_ed25519 deploy.sh root@91.99.73.203:/root/
+          ssh -i ~/.ssh/id_ed25519 root@91.99.73.203 "bash /root/deploy.sh ${DOCKER_USERNAME}" 

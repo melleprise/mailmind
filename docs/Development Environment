@@ -1,0 +1,41 @@
+Development Environment
+
+Frontend (Hauptseite) (http://localhost):
+Login über die Login-Maske. Der Benutzer muss sich registrieren oder du musst einen Superuser mit python manage.py createsuperuser im backend-Container anlegen. Das Passwort wird dann bei der Erstellung festgelegt.
+Django Admin (http://localhost/admin/):
+Benutzer/Passwort: Dieselben wie für das Frontend, sofern der Benutzer als "staff" markiert ist (z.B. ein Superuser).
+Grafana (http://localhost:3001):
+Benutzer: admin
+Passwort: admin
+(Quelle: environment Sektion im grafana Service in docker-compose.dev.yml)
+pgAdmin (http://localhost:5050):
+Benutzer (E-Mail): admin@admin.com
+Passwort: admin
+(Quelle: environment Sektion im pgadmin Service in docker-compose.dev.yml)
+(Innerhalb von pgAdmin musst du die Verbindung zur PostgreSQL-Datenbank evtl. noch manuell hinzufügen: Host=postgres, Port=5432, DB=mailmind, User=mailmind, PW=mailmind)
+Prometheus (http://localhost:9090):
+Keine expliziten Login-Daten in der Konfiguration sichtbar. Möglicherweise ist Basic Auth über die .env.development (PROMETHEUS_BASIC_AUTH_USER/PASSWORD) eingerichtet, aber das ist nicht Standard. Wahrscheinlich kein Login nötig.
+Qdrant (http://localhost:6333):
+http://localhost:6333/dashboard
+Kein Login erforderlich/konfiguriert.
+
+RQ Dashboard (Django-Q Task Queue) (http://localhost:9181):
+# URL angepasst, um direkt zu den Jobs zu führen, Basis-URL ist http://localhost:9181/
+http://localhost:9181/queues
+Kein Login erforderlich.
+
+Datenbanken (nicht direkt per URL, aber für Tools wie pgAdmin):
+PostgreSQL:
+Host: postgres (aus anderen Containern) oder localhost (vom Host)
+Port: 5432
+Datenbank: mailmind
+Benutzer: mailmind
+Passwort: mailmind
+(Quelle: environment Sektion im postgres Service in docker-compose.dev.yml)
+Redis:
+Host: redis (aus anderen Containern) oder localhost (vom Host)
+Port: 6379
+Passwort: redis123
+(Quelle: REDIS_PASSWORD in .env.development)
+Das Passwort für http://localhost:3001 (Grafana) ist also admin.
+

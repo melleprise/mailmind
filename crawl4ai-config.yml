@@ -1,0 +1,92 @@
+# Application Configuration
+app:
+  title: "Crawl4AI API for Mailmind"
+  version: "1.0.0"
+  host: "0.0.0.0"
+  port: 11235
+  reload: False
+  timeout_keep_alive: 300
+
+# Default LLM Configuration
+llm:
+  provider: "openai/gpt-4o-mini"
+  # api_key_env: "OPENAI_API_KEY" 
+  # Wenn keine API-Keys verfügbar sind, funktioniert crawl4ai 
+  # trotzdem für grundlegende Crawling-Funktionen ohne LLM
+
+postgres:
+  url: postgresql://mailmind:mailmind@postgres:5432/mailmind
+
+# Redis Configuration
+redis:
+  host: "redis"
+  port: 6379
+  db: 0
+  password: ""
+
+# Rate Limiting Configuration
+rate_limiting:
+  enabled: True
+  default_limit: "500/minute"
+  trusted_proxies: []
+  storage_uri: "memory://"
+
+# Security Configuration
+security:
+  enabled: false
+  jwt_enabled: false
+  https_redirect: false
+  trusted_hosts: ["*"]
+  headers:
+    x_content_type_options: "nosniff"
+    x_frame_options: "DENY"
+    content_security_policy: "default-src 'self'"
+    strict_transport_security: "max-age=63072000; includeSubDomains"
+
+crawler:
+  memory_threshold_percent: 95.0
+  rate_limiter:
+    base_delay: [1.0, 2.0]
+  timeouts:
+    stream_init: 30.0
+    batch_process: 300.0
+  pool:
+    max_pages: 30
+  browser:
+    browser_type: "chromium"
+    headless: true
+    viewport_width: 1280
+    viewport_height: 720
+    use_persistent_context: false
+    user_data_dir: null
+    ignore_https_errors: true
+    java_script_enabled: true
+    cookies: []
+    headers: {}
+    user_agent: null
+    light_mode: false
+    text_mode: false
+    use_managed_browser: false
+    extra_args: []
+  base_config:
+    word_count_threshold: 200
+    cache_mode: "BYPASS"
+    stream: false
+    excluded_tags: ["script", "style"]
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Observability Configuration
+observability:
+  prometheus:
+    enabled: True
+    endpoint: "/metrics"
+  health_check:
+    endpoint: "/health"
+
+# Hinweise:
+# - API-Key-Handling muss per Adapter/Custom-Backend erfolgen (siehe crawl4ai.md)
+# - Diese Datei wird per Volume ins Container-/app/config.yml gemountet 

@@ -1,0 +1,143 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend/Dockerfile.prod
+    ports:
+      - "80:80"
+    environment:
+      - NODE_ENV=production
+      - REACT_APP_API_URL=https://api.email.melleprise.de
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend/Dockerfile.prod
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=0
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DATABASE_URL=postgres://mailmind_user:${DB_PASSWORD}@postgres:5432/mailmind
+      - REDIS_URL=redis://redis:6379/0
+    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000
+
+  celery_worker:
+    image: ${DOCKER_HUB_USERNAME}/mailmind-test:latest
+    command: celery -A mailmind worker -l info
+    volumes:
+      - ./logs/celery:/app/logs
+    env_file:
+      - .env.prod
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  celery_beat:
+    image: ${DOCKER_HUB_USERNAME}/mailmind-test:latest
+    command: celery -A mailmind beat -l info
+    volumes:
+      - ./logs/celery:/app/logs
+    env_file:
+      - .env.prod
+    depends_on:
+      - db
+      - redis
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:13-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups/postgres:/backups
+    env_file:
+      - .env.prod
+    networks:
+      - mailmind_net
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    restart: unless-stopped
+    environment:
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+      - ./backups/redis:/backups
+    networks:
+      - mailmind_net
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    volumes:
+      - qdrant_data:/qdrant/storage
+      - ./backups/qdrant:/backups
+    networks:
+      - mailmind_net
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    volumes:
+      - ./docker/prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - mailmind_net
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    networks:
+      - mailmind_net
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  qdrant_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  mailmind_net:
+    driver: overlay
+    attachable: true 

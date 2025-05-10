@@ -1,0 +1,57 @@
+FROM python:3.12-slim
+
+USER root
+
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+ENV PYTHONUNBUFFERED=1
+
+# Systemabhängigkeiten installieren (für NodeSource und Playwright-Browser-Deps)
+RUN apt-get update && \
+    apt-get install -y curl gnupg git && \
+    # Node.js Repo hinzufügen und installieren (wird für login.js Skript gebraucht + puppeteer-extra)
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    # Globale Node-Module für das Login-Skript installieren (puppeteer-extra)
+    npm install -g npm && \
+    npm install -g puppeteer-extra puppeteer-extra-plugin-recaptcha && \
+    # Crawl4AI-Repo klonen und server.py kopieren
+    git clone --depth 1 https://github.com/unclecode/crawl4ai.git /tmp/crawl4ai && \
+    cp /tmp/crawl4ai/server.py /app/server.py && \
+    cp -r /tmp/crawl4ai/crawler_pool.py /app/crawler_pool.py && \
+    rm -rf /tmp/crawl4ai && \
+    # Python-Pakete installieren: crawl4ai, uvicorn (pip löst Playwright-Abhängigkeit selbst auf)
+    pip install --no-cache-dir crawl4ai "uvicorn[standard]" && \
+    # Crawl4AI Setup ausführen, um Browser für die Python-Playwright-Umgebung zu installieren/konfigurieren
+    crawl4ai-setup && \
+    playwright install --with-deps && \
+    # Überprüfen, was installiert wurde
+    echo "--- Inhalt von ${PLAYWRIGHT_BROWSERS_PATH} nach crawl4ai-setup: ---" && \
+    ls -lR ${PLAYWRIGHT_BROWSERS_PATH} && \
+    echo "------------------------------------------------------------" && \
+    # Aufräumen
+    apt-get purge -y --auto-remove curl gnupg git && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# User und Gruppe appuser erstellen
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin -c "Docker image user" appuser
+
+# Rechte für appuser setzen auf den Browser-Ordner (crawl4ai-setup sollte als root laufen und den Ordner ggf. selbst anlegen)
+RUN mkdir -p ${PLAYWRIGHT_BROWSERS_PATH} && \
+    chown -R appuser:appuser ${PLAYWRIGHT_BROWSERS_PATH}
+
+# App-Verzeichnis erstellen und Custom-Skripte kopieren
+RUN mkdir /app && chown appuser:appuser /app
+COPY crawl4ai /app/custom-scripts
+RUN chown -R appuser:appuser /app/custom-scripts
+
+# Pfad-Variablen für Node-Module
+ENV NODE_PATH="/usr/local/lib/node_modules"
+ENV PATH="$PATH:/usr/local/lib/node_modules/.bin"
+
+USER appuser
+WORKDIR /app
+
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "11235"]
+
+# KEIN automatisches Login oder Profil-Erstellung beim Build. 

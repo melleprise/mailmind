@@ -1,0 +1,93 @@
+Okay, hier ist ein knapper Plan, wie du das E-Mail-Speichern umsetzen könntest:
+
+1.  **Frontend (Einstellungen):**
+    *   Erstelle eine Seite/Komponente, wo der Nutzer IMAP/SMTP-Server, Port, SSL/TLS-Einstellungen, E-Mail-Adresse und Passwort (oder OAuth2-Flow für Anbieter wie Google/Microsoft) eingeben kann.
+    *   Sende diese Daten sicher an einen neuen Backend-API-Endpunkt.
+
+2.  **Backend API:**
+    *   Erstelle einen `/api/v1/email-accounts/`-Endpunkt (POST).
+    *   Nimm die Daten entgegen, validiere sie (optional: Testverbindung zum IMAP-Server).
+    *   **Wichtig:** Speichere das Passwort/Token **verschlüsselt** in der Datenbank (z.B. mit `cryptography`).
+    *   Lege einen neuen `EmailAccount`-Eintrag in PostgreSQL an.
+
+3.  **Datenbank (PostgreSQL):**
+    *   **`EmailAccount` Model:** Speichert E-Mail-Adresse, verschlüsseltes Passwort/Token, IMAP/SMTP-Details, Provider, Sync-Status etc.
+    *   **`Folder` Model:** Speichert Ordnernamen (INBOX, Sent, etc.), Pfade und wichtige IMAP-Metadaten wie `UIDVALIDITY`.
+    *   **`Email` Model:** Speichert Metadaten (Von, An, Betreff, Datum, Message-ID, UID, Flags wie gelesen/beantwortet/markiert) und den **E-Mail-Inhalt** (Text/HTML). Verknüpft mit `EmailAccount` und `Folder`.
+    *   **`Attachment` Model (Optional):** Speichert Metadaten zu Anhängen und ggf. den Inhalt (oder Pfad zur Datei).
+
+4.  **IMAP Handling (Backend - der Kern):**
+    *   **Dedizierter Prozess/Task pro Konto:** Nutze Django Channels Consumer oder einen separaten Prozess/Thread (verwaltet durch Django-Q oder systemd), der für *jedes* aktive E-Mail-Konto eine *persistente* IMAP-Verbindung hält.
+    *   **Initial Sync (Django-Q Task):** Nach dem Hinzufügen eines Kontos, starte einen Task, der alle Ordner abruft, und dann alle (oder die letzten X) E-Mails holt und in die PostgreSQL-DB speichert. UIDs und Message-IDs merken!
+    *   **Real-Time (IMAP IDLE):** Der persistente Prozess nutzt `IDLE`, um auf neue E-Mails zu warten. Bei Eingang -> neue Mail holen, in DB speichern.
+    *   **Polling Fallback (Django-Q Task):** Wenn `IDLE` fehlschlägt oder nicht unterstützt wird, regelmäßig (z.B. alle 5 Min) per Task nach neuen Mails suchen (anhand von UIDs).
+    *   **Flag/Status Sync:** Regelmäßig (oder bei Bedarf) den Status (gelesen, beantwortet etc.) von E-Mails auf dem Server mit der DB synchronisieren.
+    *   **Robustheit:** Gutes Fehlerhandling, Reconnect-Logik für die IMAP-Verbindungen.
+
+5.  **Vectorization (Später):**
+    *   Ein separater Django-Q Task liest neue/aktualisierte E-Mails aus der **PostgreSQL-Datenbank**.
+    *   Generiert Embeddings vom Inhalt (und ggf. Anhängen).
+    *   Speichert die Embeddings zusammen mit der E-Mail-ID in **Qdrant**.
+
+**Zusammengefasst:** Frontend sammelt Daten -> API speichert sicher -> Dedizierter IMAP-Handler pro Konto hält Verbindung (IDLE/Polling) -> E-Mails landen roh in PostgreSQL -> Vectorizer liest aus PostgreSQL und schreibt in Qdrant.
+
+
+
+Ja, absolut richtig! Genau dafür sind die Worker da.
+
+Der aktuelle Ablauf ist:
+
+1.  **Frontend Klick:** Du klickst auf den Sync-Button für ein Konto.
+2.  **API Call:** Das Frontend sendet eine POST-Anfrage an `/api/v1/accounts/{id}/sync/`.
+3.  **View Action:** Das `EmailAccountViewSet` im Backend empfängt die Anfrage und führt die `sync`-Action aus.
+4.  **Task Queuing:** Die `sync`-Action ruft `async_task('mailmind.imap.sync.sync_account', account.id)` auf. Das ist die entscheidende Stelle: Hier wird der eigentliche Synchronisierungsjob an das Task-Queue-System (in deinem Fall Django-Q, basierend auf den Settings und der `async_task`-Funktion) übergeben.
+5.  **Worker Execution:** Ein separater Worker-Prozess (läuft im `mailmind-dev-worker`-Container) nimmt diesen Task aus der Queue auf und führt die Funktion `sync_account` in `mailmind/imap/utils.py` aus. Diese Funktion kümmert sich dann um die Verbindung zum IMAP-Server, das Abrufen der E-Mails und das Speichern in der Datenbank.
+
+**Vorteil:** Der API-Aufruf kehrt sofort zurück (mit `{ status: 'sync_started' }`), und das Frontend blockiert nicht, während der potenziell lange Sync-Prozess im Hintergrund im Worker läuft.
+
+**Automatischer Initial-Sync:**
+
+Um den Sync *direkt nach dem Hinzufügen* eines Kontos zu starten, müssen wir diesen `async_task`-Aufruf auch in der `perform_create`-Methode des `EmailAccountViewSet` hinzufügen, nachdem das Konto erfolgreich gespeichert wurde.
+
+**Admin-Kontrolle:**
+
+Um den Fortschritt zu kontrollieren, bräuchten wir:
+
+1.  **Logging im Task:** Die **eigentlichen Verarbeitungs-Tasks** (wie `process_folder_metadata_task` und die von ihm aufgerufenen Funktionen/Tasks in `mailmind/imap/tasks.py` und `mailmind/imap/store.py`) sollten ihren Fortschritt und eventuelle Fehler detailliert loggen.
+2.  **Status-Updates im Modell:** Diese Tasks sollten den `sync_status` und `last_sync_error` im `EmailAccount`-Modell entsprechend aktualisieren (z.B. auf 'syncing', 'processing_folder', 'synced', 'synced_with_errors', 'error') und die Fehlermeldung speichern.
+3.  **Admin Interface:** Eine Ansicht im Django-Admin oder eine eigene Admin-Oberfläche, die den `sync_status` und `last_sync_error` der `EmailAccount`-Objekte anzeigt.
+4.  **(Optional) Task-Queue Monitoring:** Tools wie das Django-Q Admin-Interface oder separate Monitoring-Tools (wie Flower für Celery) können Einblick in laufende und abgeschlossene Tasks geben.
+
+Sollen wir zuerst den automatischen Initial-Sync nach dem Erstellen implementieren (Schritt 1.3)?
+
+
+Okay, verstanden. Basierend auf der Anforderung, die fehlende Funktion `sync_account` zu implementieren und den Erkenntnissen aus den vorhandenen Dateien (besonders dem `email integrations plan` und den API-Views), erstelle ich einen detaillierten Plan für die Umsetzung dieser Funktion.
+
+**Ziel:** Implementierung der Hintergrundaufgabe `sync_account` in `backend/mailmind/imap/sync.py`, die über Django-Q aufgerufen wird, um E-Mails für ein bestimmtes Konto vom IMAP-Server abzurufen und in der Datenbank zu speichern.
+
+**Aktuelle Implementierung (Stand: 2024-07-29):**
+
+Die Funktion `sync_account(account_id: int)` in `backend/mailmind/imap/sync.py` fungiert **nicht** mehr wie ursprünglich geplant, sondern dient als **Dispatcher**.
+
+1.  **Account-Objekt abrufen:** Holt das `EmailAccount`-Objekt.
+2.  **Task anstoßen:** Stößt eine **einzige** neue Hintergrundaufgabe für den Ordner `INBOX` an: `async_task('mailmind.imap.tasks.process_folder_metadata_task', account_id, 'INBOX')`.
+3.  **Status setzen:** **Nach** dem erfolgreichen Anstoßen der Task wird der `sync_status` des Kontos auf `'syncing'` gesetzt.
+4.  **Fehlerbehandlung:** Wenn das Anstoßen der Task fehlschlägt, wird der `sync_status` auf `'error'` gesetzt und die Fehlermeldung in `last_sync_error` gespeichert.
+5.  **Abschluss:** Im `finally`-Block wird der Status wieder auf `'idle'` gesetzt, falls kein Fehler beim Anstoßen der Task auftrat und der Status `'syncing'` war.
+
+**Die eigentliche Synchronisierungslogik (Verbindung, UIDs abrufen, E-Mails fetchen, speichern) findet in der Task `process_folder_metadata_task` und den von ihr aufgerufenen Funktionen/Tasks statt, die in `backend/mailmind/imap/tasks.py` und `backend/mailmind/imap/store.py` definiert sind.**
+
+**Ursprünglicher Plan (Veraltet):**
+
+~~Der ursprüngliche Plan sah vor, dass `sync_account` selbst die IMAP-Verbindung herstellt, E-Mails abruft (z.B. 'UNSEEN'), auf Duplikate prüft und `process_new_email` aufruft. Dies wurde zugunsten einer feingranulareren Task-basierten Architektur geändert, bei der `sync_account` nur noch der initiale Auslöser ist.~~
+
+**Fragen zur Klärung (Teilweise noch relevant für die tatsächlichen Worker-Tasks):**
+
+1.  **Passwort-Entschlüsselung:** Wie werden die Passwörter/Tokens aktuell verschlüsselt? Gibt es eine Utility-Funktion? (Diese wird nun in `get_imap_connection` in `connection.py` benötigt).
+2.  **Umfang des Syncs:** Die ausgelöste Task `process_folder_metadata_task` ruft aktuell alle UIDs (`'ALL'`) für den INBOX-Ordner ab.
+3.  **Duplikat-Prüfung:** Die Duplikatprüfung (vermutlich anhand `message_id` oder `uid`) muss in der Speicherlogik (`save_or_update_email_from_dict` in `store.py`) erfolgen.
+4.  **Fehler bei Einzel-E-Mail:** Die Fehlerbehandlung für einzelne E-Mails erfolgt innerhalb der von `process_folder_metadata_task` aufgerufenen Funktion `fetch_uids_full` und der Speicherlogik.
+
+Bitte gib mir Feedback zu diesen Punkten und Fragen. Sobald wir das geklärt haben, können wir mit der Implementierung von Schritt 1 (Erstellung des Funktionsgerüsts) beginnen.
+
+

@@ -1,0 +1,142 @@
+[
+  {
+    "name": "__cf_bm",
+    "value": "CFTgRi0Fp8FvpPLhsPX5UzLNYI66FUYbLeUgT4nyhCA-1746693594-1.0.1.1-U.9P7wv8PtGfwd4tRMzmDEcaRe9Tkz9oxo8.VYTQDOemvRwzCGueJtVn2_YDxDYBVzt_madCF4NksbSjyfw4Ghe.tIIoa6USYIjczNetXJ8",
+    "domain": ".hs-scripts.com",
+    "path": "/",
+    "expires": 1746695393.935706,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "_ga",
+    "value": "GA1.1.1004233813.1746693595",
+    "domain": ".freelance.de",
+    "path": "/",
+    "expires": 1781253598.107602,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "FPID",
+    "value": "FPID2.2.OJ1kt7yRnBI3U9wiAcFXDIOmKFyVxVVlVqo9wbm2JVI%3D.1746693595",
+    "domain": ".freelance.de",
+    "path": "/",
+    "expires": 1781253598.340884,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "FPLC",
+    "value": "MPdWyWe%2FOQru%2FEuYTt68NCzSgTpDJS4%2Fw5m8ZRillLNP8Ue%2BUD%2F5hoAjsC2HJyS%2FMjTzfAhUzvBItwzVXLbkKz%2B3fabUUuo%2FdVE9IAdpIa%2FhhiSLAE0oNhj1w7vMdw%3D%3D",
+    "domain": ".freelance.de",
+    "path": "/",
+    "expires": 1746765594.769885,
+    "httpOnly": false,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "__cf_bm",
+    "value": "EIGDqwowREBX0xjk_ygw2.cniODNuc5Wtorf6OfjqlQ-1746693595-1.0.1.1-yJjTgJeRkYWduOczQtgHMLIPHipqiwjrqB2qQPPdvE61PacNksHGs3xBiY3CNS.mJcF3DUveOfOxNryYbnoycJcOR9U2ZfdT9f5v7QKtJpA",
+    "domain": ".hsadspixel.net",
+    "path": "/",
+    "expires": 1746695395.037097,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "__cf_bm",
+    "value": "U.iyBDvAVdDOVhVhdVOVh36NNpoDpXVnXEYPJVB2gU8-1746693595-1.0.1.1-s.7gpUb_0Dy2i4LPJrDvFWFIk4hndIEMASBYR7HyoP72sWTdDJvtUOK2W5Yc38Dj.clulHO6bYX6T_B2Jqib6pxDIdglbFdI1O8Pqp6nLJs",
+    "domain": ".hs-analytics.net",
+    "path": "/",
+    "expires": 1746695395.049006,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "__cf_bm",
+    "value": "JVKlGmk82VdK78ykPrGem8qNbr5k_472avWB9Mdh_Vw-1746693595-1.0.1.1-KeqGcX5iJ5bmU0QFr4f687cQJHiERVbDopFVa8GPoSAukZNgILR9Qs9Dzx2NVU77iX_X5JQA0yudMHqVbkYgyPmuyso5P__QXhMYCAuigmo",
+    "domain": ".hs-banner.com",
+    "path": "/",
+    "expires": 1746695395.060228,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "__cf_bm",
+    "value": "QmYg5e.EJlqdR2B55rMWAjMDyL_b1xS5zi4HzU.O3Wc-1746693595-1.0.1.1-OayxYu57bUN6lOuiOPX6BRKgvuFBh_Wsn8NokNn5xihySH3HDm3cCyHWPd14HNlC83XkykKtaLBt4sIByJU4VtdgFOS9JRVt23vlUX.IARw",
+    "domain": ".hubspot.com",
+    "path": "/",
+    "expires": 1746695395.399789,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "_cfuvid",
+    "value": "BXHHedNcJTphxeV3Tp2hUVWHsppSNIRuEEcIZzt4rrQ-1746693595478-0.0.1.1-604800000",
+    "domain": ".hubspot.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "__cf_bm",
+    "value": "zMfNNw0VfMXaX5er4KkCXDx.nZlelip5fyFVobBppvI-1746693595-1.0.1.1-Cth5.6BP8.Gy5vfCku.XAjYwqinGGNQRNXe3cCLuKnhoHoZYl_.k_K0LGRosGDFfP.3sC4.qMqKvXVe7rkQOQpP5pICCW7szqdy1bmpLVRQ",
+    "domain": ".hsforms.com",
+    "path": "/",
+    "expires": 1746695395.700068,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "_cfuvid",
+    "value": "rokVYAtDV43SM6xgX7zKnxdhOGNM6BHj0nOEf3QQviQ-1746693595776-0.0.1.1-604800000",
+    "domain": ".hsforms.com",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "sso",
+    "value": "3A651451FA2FBE845F2C28B969F6CC6B",
+    "domain": "www.freelance.de",
+    "path": "/",
+    "expires": -1,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "freelance",
+    "value": "7fzrsN7_BsWyHcF2kRMdU0kbzNJ6NF8H-RMevG1ZAeLYYtmJTu5W37mFxTL5gQ%206bbee9af33b73251c76037798f4e5f81",
+    "domain": "www.freelance.de",
+    "path": "/",
+    "expires": 1749285596.718483,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "_ga_YRC3C01WDY",
+    "value": "GS2.1.s1746693594$o1$g0$t1746693598$j0$l0$h199024158",
+    "domain": ".freelance.de",
+    "path": "/",
+    "expires": 1781253598.141461,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  }
+]

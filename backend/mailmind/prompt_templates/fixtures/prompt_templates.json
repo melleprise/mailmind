@@ -1,0 +1,72 @@
+[
+  {
+    "model": "prompt_templates.prompttemplate",
+    "pk": 1,
+    "fields": {
+      "name": "generate_suggestions",
+      "description": "Generates reply suggestions and subject for an incoming email.",
+      "prompt": "**Aufgabe:** Analysiere die E-Mail und den Kontext. Erkenne Hauptabsicht und Tonfall. Generiere basierend darauf **auf Deutsch**:\n1.  Maximal 3 prägnante Antwortvorschläge.\n\n**Eingabedaten:**\n*   Kontext aus RAG: {rag_context}\n*   Erkannte Absicht: {intent}\n*   E-Mail Header:\n    *   Von: {email_from}\n    *   An: {email_to}\n    *   CC: {email_cc}\n    *   Betreff: {email_subject}\n    *   Datum: {email_received_at}\n*   E-Mail Inhalt:\n    ```\n    {email_body}\n    ```\n\nweiterer kontext:\n```\n{cv}\n```\n\nDeine Aufgabe:\n```\n{agent}\n```\n\n**Ausgabeformat - SEHR WICHTIG:**\nDeine **gesamte** Antwort muss **ausschließlich** ein **einziges, valides JSON-Objekt** sein. Es darf **absolut kein** Text, keine Einleitung oder Erklärungen vor oder nach dem JSON-Objekt stehen. Verwende **keine** Markdown-Code-Fences (wie ...).\n\nDas JSON-Objekt muss **exakt** den folgenden Schlüssel enthalten:\n*   `suggestions`: Eine Liste von JSON-Objekten. Jedes Objekt in der Liste muss **exakt und nur** die Schlüssel `intent_summary` (String), `subject` (String) und `reply_text` (String) enthalten. **Jeder Vorschlag MUSS einen `subject` haben!**\n\n**Achte UNBEDINGT auf korrekte JSON-Syntax:** Anführungszeichen um alle Schlüssel und Strings, Kommas zwischen Elementen in Listen und Objekten (aber kein Komma nach dem letzten Element).\n\n**Beispiel für das exakt erwartete JSON-Format:**\n{{\n  \"suggestions\": [\n    {{\n      \"intent_summary\": \"Beispiel Absicht 1\",\n      \"subject\": \"Beispiel Betreff 1\",\n      \"reply_text\": \"Beispiel Antworttext 1...\"\n    }},\n    {{\n      \"intent_summary\": \"Beispiel Absicht 2\",\n      \"subject\": \"Beispiel Betreff 2\",\n      \"reply_text\": \"Beispiel Antworttext 2...\"\n    }}\n  ]\n}}\n\n**Erinnerung:** Gib NUR das JSON-Objekt aus, sonst nichts.",
+      "provider": "google_gemini",
+      "model_name": "gemini-2.0-flash"
+    }
+  },
+  {
+    "model": "prompt_templates.prompttemplate",
+    "pk": 3,
+    "fields": {
+      "name": "refine_suggestion",
+      "description": "Verfeinert Betreff und/oder Body einer E-Mail-Antwort basierend auf einem freien Prompt.",
+      "prompt": "Refine the following email reply based on the provided instruction. Respond ONLY with the refined subject and body in a JSON object like this: {{\"refined_subject\": \"...\", \"refined_body\": \"...\"}}\n\nInstruction:\n{refinement_prompt}\n\nOriginal Subject:\n{original_subject}\n\nOriginal Body:\n{original_body}\n\nweiterer kontext:\n```\n{cv}\n```\n\nDeine Aufgabe:\n```\n{agent}\n```\n\n**Erinnerung:** Gib NUR das JSON-Objekt aus, sonst nichts.",
+      "provider": "google_gemini",
+      "model_name": "gemini-2.0-flash",
+      "created_at": "2024-05-01T12:00:00Z",
+      "updated_at": "2024-05-01T12:00:00Z"
+    }
+  },
+  {
+    "model": "prompt_templates.prompttemplate",
+    "pk": 4,
+    "fields": {
+      "name": "suggest_folder_structure",
+      "description": "Schlägt eine hierarchische Ordnerstruktur basierend auf einer Liste von E-Mail-Metadaten vor.",
+      "prompt": "Analysiere die folgende Liste von E-Mail-Metadaten (Betreff, Absender, Empfänger, aktueller Ordner) für den Benutzer {user_email}.\nSchlage eine hierarchische Ordnerstruktur zur Organisation dieser E-Mails nach Themen, Projekten, Absendern oder anderen logischen Gruppierungen vor.\nSystemordner wie 'INBOX', 'Sent', 'Drafts', 'Trash', 'Spam' sollen ignoriert oder nur berücksichtigt werden, wenn sie als benutzerdefinierte Ordner genutzt wurden.\n\nAntworte ausschließlich mit einem JSON-Objekt, das die vorgeschlagene Ordnerstruktur darstellt.\nNutze verschachtelte Objekte: Schlüssel sind Ordnernamen (Strings), Werte sind leere JSON-Objekte {} oder weitere verschachtelte Ordner.\nDie Ordnernamen sollen kurz und aussagekräftig sein. Keine Erklärungen, keine Kommentare.\n\nBeispiel für das JSON-Antwortformat:\n{ \"Arbeit\": { \"Projekt Alpha\": {}, \"Verwaltung\": {} }, \"Privat\": { \"Familie\": {}, \"Finanzen\": {} }, \"Newsletter\": {} }\n\nE-Mail-Metadaten (Beispiel aktueller E-Mails):\n{email_metadata_json}",
+      "provider": "google_gemini",
+      "model_name": "gemini-2.5-pro-exp-03-25",
+      "created_at": "2025-05-03T10:00:00Z",
+      "updated_at": "2025-05-03T10:20:00Z"
+    }
+  },
+  {
+    "model": "prompt_templates.prompttemplate",
+    "pk": 5,
+    "fields": {
+      "name": "summarize_email",
+      "description": "Erstellt eine kurze und eine mittellange Zusammenfassung einer E-Mail auf Deutsch.",
+      "prompt": "**Aufgabe:** Fasse die folgende E-Mail auf Deutsch zusammen. Gib zwei Ergebnisse zurück:\n1. Eine sehr kurze Zusammenfassung (2-5 Worte) als 'short_summary'.\n2. Eine mittellange Zusammenfassung (1-2 Sätze) als 'medium_summary'.\n\n**E-Mail-Inhalt:**\n```\n{email_body}\n```\n\n**Ausgabeformat:**\n```json\n{{\n  \"short_summary\": \"...\",\n  \"medium_summary\": \"...\"\n}}\n```\n\nGib NUR das JSON-Objekt aus, sonst nichts.",
+      "provider": "google_gemini",
+      "model_name": "gemini-2.0-flash"
+    }
+  },
+  {
+    "model": "prompt_templates.prompttemplate",
+    "pk": 6,
+    "fields": {
+      "name": "correct_text_full",
+      "description": "Korrigiert den gesamten Body und Betreff einer E-Mail. Gibt beides als JSON zurück.",
+      "prompt": "Korrigiere die Rechtschreib- und Grammatikfehler im folgenden E-Mail-Betreff und -Text. Behalte die ursprüngliche Bedeutung und den Ton bei. Nutze den Kontext, falls vorhanden.\n\nOriginal Betreff:\n{text_subject_to_correct}\n\nOriginal Nachricht:\n{text_body_to_correct}\n\nKontext (falls vorhanden):\n{context}\n\nGib ausschließlich ein valides JSON-Objekt zurück: {{\"corrected_subject\": \"...\", \"corrected_body\": \"...\"}}. Keine Erklärungen, keine Listen, keine Wiederholung des Prompts.",
+      "provider": "groq",
+      "model_name": "llama3-70b-8192"
+    }
+  },
+  {
+    "model": "prompt_templates.prompttemplate",
+    "pk": 7,
+    "fields": {
+      "name": "correct_text_snippet",
+      "description": "Korrigiert nur einen Ausschnitt/Text-Snippet. Gibt nur das korrigierte Snippet zurück.",
+      "prompt": "Korrigiere die Rechtschreib- und Grammatikfehler im folgenden Textausschnitt. Behalte die ursprüngliche Bedeutung und den Ton bei.\n\nZu korrigierender Ausschnitt:\n{text_snippet_to_correct}\n\nKontext (falls vorhanden):\n{context}\n\nGib ausschließlich den korrigierten Ausschnitt zurück – keine Erklärungen, keine Wiederholung des Prompts, keine Listen.",
+      "provider": "groq",
+      "model_name": "llama3-70b-8192"
+    }
+  }
+] 

@@ -1,0 +1,8 @@
+RUN --mount=type=cache,target=/root/.cache/pip pip install -r requirements.txt
+
+# Kopiere den Backend-Code in den Container
+COPY backend/ /app/
+ 
+# Kopiere die Entrypoint-Skripte
+COPY docker/backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+COPY docker/backend/docker-entrypoint-worker.sh /usr/local/bin/docker-entrypoint-worker.sh 

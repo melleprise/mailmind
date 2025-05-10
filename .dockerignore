@@ -1,0 +1,60 @@
+# Temporär geleert für Debugging
+
+# Dependencies
+node_modules
+.pnpm-store
+.npm
+.yarn
+
+# Build outputs
+dist
+build
+.next
+out
+
+# Development
+.git
+.gitignore
+# .env*
+.vscode
+.idea
+*.log
+*.lock
+!pnpm-lock.yaml
+
+# Docker
+.docker
+docker/*
+!docker/frontend/
+!docker/backend/
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# Large directories that might be present
+coverage
+tmp
+temp
+
+# Cache directories
+.cache
+model-cache/
+
+# --- Docker --- 
+# Auskommentierte Regeln entfernt
+
+# Explizit NICHT ignorieren (auch wenn nicht unbedingt nötig, schadet es nicht)
+# !backend/pyproject.toml
+# !backend/poetry.lock
+# !docker/backend/docker-entrypoint.sh
+
+# ... AUSSER den spezifischen Dateien/Ordnern, die wir für Builds brauchen
+# !docker/backend/Dockerfile.dev
+# !docker/frontend/Dockerfile.dev
+# !docker/caddy/Caddyfile
+# !docker/prometheus/prometheus.yml
+
+# Alternativer Ansatz: Ignoriere nur das .docker Verzeichnis (falls vorhanden)
+# und nicht den gesamten docker Ordner
+# .docker 
