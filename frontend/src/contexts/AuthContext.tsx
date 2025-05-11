@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsAuthenticated(true);
       setUser(userData);
       setLoading(false);
-      navigate('/dashboard'); // Navigate after setting user state
+      navigate('/leads'); // Nach Login zu /leads weiterleiten
     } catch (error) {
       console.error("Failed to fetch user data after login:", getErrorMessage(error));
       // Handle case where fetching user data fails even after login response was okay

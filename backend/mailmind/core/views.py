@@ -63,6 +63,7 @@ from .utils import get_imap_connection # Assuming you have a helper like this
 from mailmind.imap import actions as imap_actions
 from mailmind.imap.utils import map_folder_name_to_server
 from imap_tools import MailMessageFlags
+import smtplib
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -131,54 +132,52 @@ class UserRegistrationView(generics.CreateAPIView):
             # Re-raise the exception to indicate failure of registration
             raise e
 
+def send_verification_email(user):
+    from django.core.mail import send_mail
+    from django.conf import settings
+    from .models import EmailVerification
+    verification, _ = EmailVerification.objects.get_or_create(user=user)
+    verification_url = f"{settings.FRONTEND_URL}/verify-email/{verification.token}"
+    subject = 'Verify your email'
+    message = f'Please click the following link to verify your email: {verification_url}'
+    old_debug = smtplib.SMTP.debuglevel
+    smtplib.SMTP.debuglevel = 1
+    try:
+        result = send_mail(
+            subject,
+            message,
+            settings.DEFAULT_FROM_EMAIL,
+            [user.email],
+            fail_silently=False,
+        )
+    finally:
+        smtplib.SMTP.debuglevel = old_debug
+    return result
+
 class ResendVerificationEmailView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
         email = request.data.get('email')
-        if not email:
-            return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        User = get_user_model()
+        logger.debug(f"ResendVerificationEmailView aufgerufen mit Email: {email}")
         try:
             user = User.objects.get(email=email)
+            logger.debug(f"User gefunden: {user.email}, is_active={user.is_active}")
         except User.DoesNotExist:
-            # Return a generic success message even if user doesn't exist 
-            # to prevent email enumeration attacks.
-            logger.warning(f"Resend verification requested for non-existent email: {email}")
-            return Response({'message': 'If an account with this email exists and is not verified, a new verification email has been sent.'}, status=status.HTTP_200_OK)
-
-        if user.is_email_verified:
-            return Response({'error': 'Email is already verified.'}, status=status.HTTP_400_BAD_REQUEST)
-        
-        if not user.is_active:
-             # Don't resend for inactive (potentially banned) users, 
-             # but send the same generic message.
-             logger.warning(f"Resend verification requested for inactive user: {email}")
-             return Response({'message': 'If an account with this email exists and is not verified, a new verification email has been sent.'}, status=status.HTTP_200_OK)
-
+            logger.warning(f"User mit Email {email} nicht gefunden.")
+            return Response({'message': 'User not found.'}, status=404)
+        if user.is_active:
+            logger.info(f"User {email} ist bereits aktiv. Keine Mail gesendet.")
+            return Response({'message': 'User already active.'}, status=200)
+        # Für inaktive User: Mail senden!
         try:
-            # Get existing or create new verification record
-            verification, created = EmailVerification.objects.update_or_create(
-                user=user,
-                defaults={'token': secrets.token_urlsafe(32), 'expires_at': timezone.now() + timedelta(hours=24)}
-            )
-
-            # Send email
-            verification_url = f"{settings.FRONTEND_URL}/verify-email/{verification.token}"
-            send_mail(
-                'Verify your email',
-                f'Please click the following link to verify your email: {verification_url}',
-                settings.DEFAULT_FROM_EMAIL,
-                [user.email],
-                fail_silently=False,
-            )
-            logger.info(f"Resent verification email to {user.email}")
-            return Response({'message': 'If an account with this email exists and is not verified, a new verification email has been sent.'}, status=status.HTTP_200_OK)
+            logger.info(f"Sende Verification-Mail an {user.email} mit Backend {settings.EMAIL_BACKEND}")
+            result = send_verification_email(user)
+            logger.debug(f"send_verification_email Rückgabe: {result}")
         except Exception as e:
-            logger.error(f"Failed to resend verification email to {user.email}: {e}", exc_info=True)
-            # Don't expose internal errors, return a generic server error
-            return Response({'error': 'Failed to resend verification email. Please try again later.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Fehler beim Senden der Verification-Mail: {e}", exc_info=True)
+            return Response({'message': 'Fehler beim Senden der Mail.'}, status=500)
+        return Response({'message': 'Verification email sent.'}, status=200)
 
 class EmailVerificationView(APIView):
     permission_classes = [AllowAny]

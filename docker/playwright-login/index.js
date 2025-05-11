@@ -6,9 +6,12 @@ const axios = require('axios');
 const app = express();
 app.use(express.json());
 
+// Headless-Modus über ENV-Variable steuerbar
+const headless = process.env.VISIBLE_BROWSER !== 'true';
+
 // Login-Logik für freelance.de (angepasst, um loginUrl zu akzeptieren)
 async function loginFreelanceDe(username, password, loginUrl, overviewUrl, detailUrl) {
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({ headless });
   const page = await browser.newPage();
   try {
     console.log('[PlaywrightLogin] Gehe zu Login-Seite:', loginUrl || 'https://www.freelance.de/login.php');
@@ -234,7 +237,7 @@ app.post('/fetch-page-by-user-id', async (req, res) => {
     }
     console.log(`[PlaywrightLogin] /fetch-page-by-user-id: Starte Playwright Login für ${username} auf ${loginUrl}`);
     // Login + Übersicht
-    const browser = await chromium.launch({ headless: true });
+    const browser = await chromium.launch({ headless });
     const page = await browser.newPage();
     try {
       await page.goto(loginUrl);

@@ -26,7 +26,6 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
-.env
 .venv
 env/
 venv/
@@ -65,7 +64,6 @@ Thumbs.db
 ._*
 
 # Project specific
-*.log
 media/
 static/
 docker/data/

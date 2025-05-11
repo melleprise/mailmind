@@ -474,7 +474,7 @@ export const authApi = {
    */
   resendVerificationEmail: async (email: string): Promise<{ message: string }> => {
     try {
-      const response = await apiClient.post<{ message: string }>('/core/resend-verification/', { email });
+      const response = await apiClient.post<{ message: string }>('/core/auth/resend-verification/', { email });
       return response.data;
     } catch (error) {
       console.error(`Error resending verification email for ${email}:`, error);

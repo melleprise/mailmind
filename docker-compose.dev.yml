@@ -104,6 +104,8 @@ services:
       - WATCHPACK_POLLING=true
       - HOST=0.0.0.0
       - PORT=8080
+    env_file:
+      - .env.development
     deploy:
       resources:
         limits:
@@ -198,14 +200,14 @@ services:
       - EMAIL_ACCOUNT_ENCRYPTION_KEY=${EMAIL_ACCOUNT_ENCRYPTION_KEY}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
       - DISPLAY=${DISPLAY} # X11-Forwarding für sichtbaren Browser
+    env_file:
+      - .env.development
     networks:
       - mailmind-dev-network
     # Hinweis: Auf dem Host muss ausgeführt werden: xhost +local:docker
 
   crawl4ai:
-    build:
-      context: ./crawl4ai
-      dockerfile: Dockerfile.custom
+    image: unclecode/crawl4ai:latest
     container_name: mailmind-dev-crawl4ai
     platform: linux/amd64
     ports:
@@ -222,6 +224,8 @@ services:
       - PG_PASSWORD=${POSTGRES_PASSWORD:-mailmind}
       - PG_DB=${POSTGRES_DB:-mailmind}
       - PG_HOST=postgres
+    env_file:
+      - .env.development
     depends_on:
       - backend
       - playwright-login

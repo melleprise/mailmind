@@ -30,10 +30,7 @@ const VerifyEmail: React.FC = () => {
 
       try {
         const response = await authApi.verifyEmail(token);
-        setSuccess(response.message || 'Email successfully verified. Redirecting to login...');
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
+        setSuccess(response.message || 'Email successfully verified.');
       } catch (err) {
         setError(getErrorMessage(err));
       } finally {
@@ -75,7 +72,7 @@ const VerifyEmail: React.FC = () => {
           </Box>
         )}
 
-        {!loading && error && (
+        {!loading && error && !success && (
           <Box sx={{ mt: 4 }}>
             <Alert severity="error">{error}</Alert>
             <Button

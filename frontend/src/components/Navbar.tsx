@@ -75,47 +75,64 @@ const Navbar: React.FC = () => {
     >
       <Toolbar>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <IconButton 
-            component={RouterLink} 
-            to="/leads" 
-            sx={{ p: 0, mr: 6, my: 1.5 }}
-          >
-            <MonetizationOnOutlinedIcon 
-              sx={{ 
-                color: location.pathname.startsWith('/leads') 
-                  ? 'primary.main' 
-                  : 'text.secondary' 
-              }} 
-            />
-          </IconButton>
-          <IconButton 
-            component={RouterLink}
-            to={isAuthenticated ? "/mail" : "/"} 
-            sx={{ p: 0, mr: 4, my: 1.5 }}
-          >
-            <MailIcon 
-              sx={{ 
-                color: location.pathname === '/' || location.pathname === '/mail' || location.pathname === '/dashboard'
-                  ? 'primary.main' 
-                  : 'text.secondary' 
-              }} 
-            />
-          </IconButton>
-          {isAuthenticated && (
-            <IconButton
-              component={RouterLink}
-              to="/aisearch"
-              sx={{ color: 'text.secondary', my: 1.5, ml: 1 }}
-              title="AI Search"
-            >
-              <FolderIcon 
-                sx={{ 
-                  color: location.pathname.startsWith('/aisearch') 
-                    ? 'primary.main' 
-                    : 'text.secondary' 
-                }} 
-              />
-            </IconButton>
+          {isAuthenticated ? (
+            <>
+              <IconButton 
+                component={RouterLink} 
+                to="/leads" 
+                sx={{ p: 0, mr: 6, my: 1.5 }}
+              >
+                <MonetizationOnOutlinedIcon 
+                  sx={{ 
+                    color: location.pathname.startsWith('/leads') 
+                      ? 'primary.main' 
+                      : 'text.secondary' 
+                  }} 
+                />
+              </IconButton>
+              <IconButton 
+                component={RouterLink}
+                to={"/mail"} 
+                sx={{ p: 0, mr: 4, my: 1.5 }}
+              >
+                <MailIcon 
+                  sx={{ 
+                    color: location.pathname === '/' || location.pathname === '/mail' || location.pathname === '/dashboard'
+                      ? 'primary.main' 
+                      : 'text.secondary' 
+                  }} 
+                />
+              </IconButton>
+              <IconButton
+                component={RouterLink}
+                to="/aisearch"
+                sx={{ color: 'text.secondary', my: 1.5, ml: 1 }}
+                title="AI Search"
+              >
+                <FolderIcon 
+                  sx={{ 
+                    color: location.pathname.startsWith('/aisearch') 
+                      ? 'primary.main' 
+                      : 'text.secondary' 
+                  }} 
+                />
+              </IconButton>
+            </>
+          ) : (
+            <>
+              <IconButton 
+                component={RouterLink}
+                to="/" 
+                sx={{ p: 0, mr: 4, my: 1.5 }}
+              >
+                <MailIcon 
+                  sx={{ color: 'primary.main' }} 
+                />
+              </IconButton>
+              <Typography variant="h6" sx={{ color: 'text.primary', fontWeight: 700, ml: 0 }}>
+                mailmind
+              </Typography>
+            </>
           )}
         </Box>
 

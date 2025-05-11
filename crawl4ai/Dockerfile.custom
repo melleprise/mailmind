@@ -10,6 +10,30 @@ COPY requirements.txt /app/custom_requirements.txt
 # Installiere die zusätzlichen Abhängigkeiten
 RUN pip install --no-cache-dir -r /app/custom_requirements.txt
 
+# Installiere alle X11/XQuartz-Bibliotheken und x11-apps wie in der Anleitung beschrieben, damit sichtbarer Browsermodus immer möglich ist.
+RUN apt-get update && apt-get install -y \
+    x11-apps \
+    libgtk-3-0 \
+    libx11-xcb1 \
+    libxcomposite1 \
+    libxcursor1 \
+    libxdamage1 \
+    libxi6 \
+    libxtst6 \
+    libnss3 \
+    libxrandr2 \
+    libasound2 \
+    libpangocairo-1.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdrm2 \
+    libgbm1 \
+    libxss1 \
+    libxshmfence1 \
+    libxinerama1 \
+    libxkbcommon0 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Der CMD des Basisimages (unclecode/crawl4ai:latest) sollte weiterhin gelten.
 # Normalerweise: CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "11235"]
 # Falls nicht, müsste es hier explizit gesetzt werden. 

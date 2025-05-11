@@ -1,4 +1,4 @@
-import { createTheme, ThemeOptions } from '@mui/material/styles';
+import { createTheme, ThemeOptions } from '@mui/material';
 
 // Base options shared between light and dark themes
 const baseThemeOptions: ThemeOptions = {

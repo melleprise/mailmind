@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { Box, Container, CircularProgress, CssBaseline, GlobalStyles } from '@mui/material';
+import { Box, Container, CircularProgress, CssBaseline, GlobalStyles, Typography, Button, Paper } from '@mui/material';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AppThemeProvider } from './contexts/ThemeContext';
 import Navbar from './components/Navbar';
@@ -18,6 +18,8 @@ import AISearchPage from './pages/AISearchPage';
 import LeadsPage from './pages/LeadsPage';
 import { I18nextProvider } from 'react-i18next';
 import i18n from './i18n';
+import MailIcon from '@mui/icons-material/Mail';
+import { Link as RouterLink } from 'react-router-dom';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -41,8 +43,65 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   return <>{children}</>;
 };
 
+const HomeLoggedOut: React.FC = () => (
+  <Container maxWidth="md">
+    <Box
+      sx={{
+        mt: 8,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+    >
+      <Paper
+        elevation={3}
+        sx={{
+          p: 4,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+        }}
+      >
+        <Typography variant="h3" component="h1" gutterBottom>
+          Welcome to Email AI Mind
+        </Typography>
+        <Typography variant="h5" component="h2" gutterBottom>
+          Your Smart Email Assistant
+        </Typography>
+        <Typography variant="body1" paragraph>
+          Let AI help you manage your emails efficiently. Swipe right to keep,
+          left to archive, and get smart suggestions for quick responses.
+        </Typography>
+        <Box sx={{ mt: 3 }}>
+          <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            component={RouterLink}
+            to="/register"
+            sx={{ mr: 2 }}
+          >
+            Get Started
+          </Button>
+          <Button
+            variant="outlined"
+            color="primary"
+            size="large"
+            component={RouterLink}
+            to="/login"
+          >
+            Login
+          </Button>
+        </Box>
+      </Paper>
+    </Box>
+  </Container>
+);
+
 const AppRoutes: React.FC = () => {
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
 
   return (
     <Box 
@@ -74,9 +133,7 @@ const AppRoutes: React.FC = () => {
         <I18nextProvider i18n={i18n}>
           <Routes>
             <Route path="/" element={
-              <Box sx={{ width: '100%', margin: 0, padding: 0 }}>
-                <Home />
-              </Box>
+              isAuthenticated ? <Navigate to="/leads" replace /> : <HomeLoggedOut />
             } />
             <Route path="/login" element={
               <Box sx={{ width: '100%', margin: 0, padding: 0 }}>

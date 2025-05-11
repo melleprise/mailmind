@@ -2,6 +2,7 @@ import environ
 import os
 from pathlib import Path
 from .base import *  # Import base settings
+import smtplib
 
 env = environ.Env()
 
@@ -138,10 +139,15 @@ CRISPY_TEMPLATE_PACK = "bootstrap5"
 EMAIL_BACKEND = env(
     "DJANGO_EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend"
 )
-# Force console backend for absolute certainty in development
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # EMAIL_HOST, PORT, TLS, USER, PASSWORD, DEFAULT_FROM_EMAIL likely inherited or okay as default None/empty
+EMAIL_HOST = env("EMAIL_HOST")
+EMAIL_PORT = env("EMAIL_PORT")
+EMAIL_HOST_USER = env("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
 
 # ADMIN
 # ------------------------------------------------------------------------------
@@ -355,3 +361,7 @@ SPECTACULAR_SETTINGS = {
 #     # If you wish to associate users to errors (assuming sentry_sdk>=0.5.0)
 #     send_default_pii=True
 # )
+
+EMAIL_USE_LOCALTIME = True
+EMAIL_DEBUG = True
+smtplib.SMTP.debuglevel = 1

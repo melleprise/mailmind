@@ -1,7 +1,6 @@
 import React, { createContext, useState, useMemo, useContext, ReactNode, useEffect } from 'react';
 import { ThemeProvider as MuiThemeProvider, PaletteMode } from '@mui/material';
-import createTheme_default from '@mui/material/styles/createTheme';
-const createTheme = createTheme_default;
+import { createTheme } from '@mui/material';
 import { lightThemeOptions, darkThemeOptions } from '../theme/theme'; // Adjust path if necessary
 
 interface ThemeContextType {

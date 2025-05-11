@@ -33,15 +33,16 @@ export default defineConfig({
       }
     }
   },
-  // optimizeDeps: { // Temporär auskommentiert
-  //   exclude: ['@rollup/rollup-linux-arm64-musl'],
-  //   esbuildOptions: {
-  //     target: 'esnext',
-  //     supported: {
-  //       'top-level-await': true
-  //     }
-  //   }
-  // },
+  optimizeDeps: {
+    include: [
+      '@mui/material',
+      '@mui/material/CssBaseline',
+      '@mui/material/Box',
+      '@emotion/react',
+      '@emotion/styled'
+    ],
+    force: true
+  },
   build: {
     target: 'esnext',
     sourcemap: true
