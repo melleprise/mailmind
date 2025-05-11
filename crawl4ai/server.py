@@ -58,7 +58,7 @@ async def read_test_route():
 
 @app.get("/health") # Wichtig für den Docker Healthcheck
 async def health_check():
-    print("CUSTOM SERVER.PY: /health aufgerufen")
+    # print("CUSTOM SERVER.PY: /health aufgerufen")
     return {"status": "healthy"}
 
 print("CUSTOM SERVER.PY: Routen /test-route und /health definiert.")

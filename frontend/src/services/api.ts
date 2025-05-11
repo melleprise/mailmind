@@ -1032,62 +1032,62 @@ export interface FreelanceValidationResponse {
 
 // FreelanceProviderCredential API Service
 export const freelanceCredentials = {
-  // Hole vorhandene Credentials
-  get: async (): Promise<FreelanceProviderCredential> => {
+  // GET /api/v1/freelance/credentials/ (mapped to list in ViewSet, returns own credentials if any)
+  get: async (): Promise<FreelanceProviderCredential | null> => {
     try {
-      console.log('[api.ts] Hole Freelance-Provider-Credentials');
       const response = await apiClient.get<FreelanceProviderCredential>('/freelance/credentials/');
-      console.log('[api.ts] Freelance-Provider-Credentials erfolgreich geladen');
       return response.data;
-    } catch (error) {
-      console.error('Fehler beim Laden der Freelance-Provider-Credentials:', error);
+    } catch (error: any) {
+      if (axios.isAxiosError(error) && error.response && error.response.status === 404) {
+        console.info('[api.ts] Keine Freelance-Provider-Credentials gefunden.');
+        return null; // Explizit null zurückgeben, wenn keine Credentials vorhanden sind
+      }
+      console.error('[api.ts] Fehler beim Abrufen der Freelance-Provider-Credentials:', error);
       throw error;
     }
   },
-
-  // Erstelle neue Credentials
-  create: async (credentials: FreelanceProviderCredentialInput): Promise<{ detail: string }> => {
+  // POST /api/v1/freelance/credentials/
+  create: async (data: FreelanceProviderCredentialInput): Promise<FreelanceProviderCredential> => {
+    console.log('[api.ts] Erstelle Freelance-Provider-Credentials mit Daten:', data);
     try {
-      console.log('[api.ts] Erstelle neue Freelance-Provider-Credentials');
-      const response = await apiClient.post<{ detail: string }>('/freelance/credentials/', credentials);
-      console.log('[api.ts] Freelance-Provider-Credentials erfolgreich erstellt');
+      const response = await apiClient.post<FreelanceProviderCredential>('/freelance/credentials/', data);
+      console.log('[api.ts] Antwort vom Erstellen der Freelance-Provider-Credentials:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Fehler beim Erstellen der Freelance-Provider-Credentials:', error);
+      console.error('[api.ts] Fehler beim Erstellen der Freelance-Provider-Credentials:', error);
       throw error;
     }
   },
-
-  // Aktualisiere vorhandene Credentials
-  update: async (credentials: Partial<FreelanceProviderCredentialInput>): Promise<{ detail: string }> => {
+  // PUT /api/v1/freelance/credentials/me/  <- URL geändert
+  update: async (data: Partial<FreelanceProviderCredentialInput>): Promise<FreelanceProviderCredential> => {
+    console.log('[api.ts] Aktualisiere Freelance-Provider-Credentials mit Daten:', data);
     try {
-      console.log('[api.ts] Aktualisiere Freelance-Provider-Credentials');
-      const response = await apiClient.put<{ detail: string }>('/freelance/credentials/', credentials);
-      console.log('[api.ts] Freelance-Provider-Credentials erfolgreich aktualisiert');
+      // Die ID wird nicht mehr in der URL benötigt, da /me/ sich auf den request.user bezieht
+      const response = await apiClient.put<FreelanceProviderCredential>('/freelance/credentials/me/', data);
+      console.log('[api.ts] Antwort vom Aktualisieren der Freelance-Provider-Credentials:', response.data);
       return response.data;
     } catch (error) {
-      console.error('Fehler beim Aktualisieren der Freelance-Provider-Credentials:', error);
+      console.error('[api.ts] Fehler beim Aktualisieren der Freelance-Provider-Credentials:', error);
       throw error;
     }
   },
-
-  // Lösche vorhandene Credentials
+  // DELETE /api/v1/freelance/credentials/me/ <- URL geändert
   delete: async (): Promise<void> => {
+    console.log('[api.ts] Lösche Freelance-Provider-Credentials');
     try {
-      console.log('[api.ts] Lösche Freelance-Provider-Credentials');
-      await apiClient.delete('/freelance/credentials/');
-      console.log('[api.ts] Freelance-Provider-Credentials erfolgreich gelöscht');
+      // Die ID wird nicht mehr in der URL benötigt
+      await apiClient.delete('/freelance/credentials/me/');
+      console.log('[api.ts] Freelance-Provider-Credentials erfolgreich gelöscht.');
     } catch (error) {
-      console.error('Fehler beim Löschen der Freelance-Provider-Credentials:', error);
+      console.error('[api.ts] Fehler beim Löschen der Freelance-Provider-Credentials:', error);
       throw error;
     }
   },
-
-  // Validiere vorhandene Credentials
-  validate: async (): Promise<FreelanceValidationResponse> => {
+  // POST /api/v1/freelance/credentials/validate/
+  validate: async (data: FreelanceProviderCredentialInput): Promise<FreelanceValidationResponse> => {
     try {
       console.log('[api.ts] Validiere Freelance-Provider-Credentials');
-      const response = await apiClient.post<FreelanceValidationResponse>('/freelance/credentials/validate/');
+      const response = await apiClient.post<FreelanceValidationResponse>('/freelance/credentials/validate/', data);
       console.log('[api.ts] Freelance-Provider-Credentials-Validierung abgeschlossen:', response.data.success);
       return response.data;
     } catch (error) {
@@ -1095,7 +1095,6 @@ export const freelanceCredentials = {
       throw error;
     }
   },
-
   // Prüfe, ob Credentials existieren
   exists: async (): Promise<boolean> => {
     try {

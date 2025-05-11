@@ -5,17 +5,19 @@ from .views import FreelanceProjectViewSet, FreelanceProviderCredentialViewSet, 
 router = DefaultRouter()
 router.register(r'projects', FreelanceProjectViewSet, basename='freelance-projects')
 
-# Registriere ViewSet mit expliziten Methoden
-credentials_list = FreelanceProviderCredentialViewSet.as_view({
-    'get': 'list',      # Für /api/freelance/credentials/ (zeigt Credentials des request.user)
-    'post': 'create',   # Für /api/freelance/credentials/
+# Registriere ViewSet für LIST (GET) und CREATE (POST) auf /api/freelance/credentials/
+credentials_list_create = FreelanceProviderCredentialViewSet.as_view({
+    'get': 'list',
+    'post': 'create'
 })
 
-# Eigene View für Update und Delete, die auf request.user basiert
-#credentials_self_detail = FreelanceProviderCredentialViewSet.as_view({
-#    'put': 'update',    # Für /api/freelance/credentials/me/ (oder ähnlich, zur Bearbeitung eigener Credentials)
-#    'delete': 'destroy' # Für /api/freelance/credentials/me/
-#})
+# Eigene View für UPDATE (PUT) und DELETE auf /api/freelance/credentials/me/
+# Diese Aktionen beziehen sich immer auf den request.user.
+credentials_self_manage = FreelanceProviderCredentialViewSet.as_view({
+    'get': 'list', # Kann hier auch list sein, um eigene Daten abzurufen, alternativ eine eigene 'retrieve_self' action
+    'put': 'update',
+    'delete': 'destroy'
+})
 
 # View für den Abruf durch interne Dienste oder Admins anhand der User-ID in der URL
 credentials_detail_by_userid = FreelanceProviderCredentialViewSet.as_view({
@@ -28,10 +30,13 @@ credentials_validate = FreelanceProviderCredentialViewSet.as_view({
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('credentials/', credentials_list, name='freelance-credentials-list-create'),
+    # URLs für den authentifizierten User (Management der eigenen Credentials)
+    path('credentials/me/', credentials_self_manage, name='freelance-credentials-self-manage'),
+    # URLs für das Auflisten (GET) und Erstellen (POST) von Credentials (allgemein, aber auf request.user bezogen)
+    # Beachte: PUT und DELETE wurden hier entfernt und auf /me/ verschoben
+    path('credentials/', credentials_list_create, name='freelance-credentials-list-create'),
     # Ein neuer Endpunkt für crawl4ai, um Credentials per User-ID abzurufen:
     path('credentials/<int:user_id>/', credentials_detail_by_userid, name='freelance-credentials-detail-by-userid'),
     path('credentials/validate/', credentials_validate, name='freelance-credentials-validate'),
-    # path('credentials/me/', credentials_self_detail, name='freelance-credentials-self-detail'), # Optional für Frontend
     path('crawl/', crawl_projects, name='freelance-crawl'),
 ] 

@@ -136,7 +136,20 @@ class FreelanceProviderCredentialViewSet(viewsets.ViewSet):
             )
         
         serializer = self.serializer_class(credential)
-        return Response(serializer.data)
+        data = serializer.data
+
+        # Wenn die Anfrage vom Playwright-Login-Service kommt, füge das entschlüsselte Passwort hinzu
+        if request.headers.get('X-Playwright-Login-Service') == 'true':
+            try:
+                decrypted_password = credential.get_password()
+                if decrypted_password:
+                    data['decrypted_password'] = decrypted_password
+                else:
+                    logger.warning(f"Konnte Passwort für User {user_id_from_url} nicht entschlüsseln, obwohl von Playwright angefordert.")
+            except Exception as e:
+                logger.error(f"Fehler beim Entschlüsseln des Passworts für User {user_id_from_url} für Playwright: {e}")
+
+        return Response(data)
     
     def create(self, request, *args, **kwargs):
         """Erstellt neue Credentials"""

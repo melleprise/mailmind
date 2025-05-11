@@ -47,6 +47,7 @@ interface LeadProject {
   hourly_rate?: string;
   created_at: string;
   description?: string;
+  applied?: boolean;
 }
 
 interface PaginatedLeadResponse {
@@ -362,8 +363,24 @@ const LeadsPage: React.FC = () => {
                     Stundensatz: {selectedLead.hourly_rate}
                   </Typography>
                 )}
+                <Box sx={{ mt: 1, mb: 1, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Bewerbungen: {selectedLead.applications}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Provider: {selectedLead.provider}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Enddatum: {selectedLead.end_date ? new Date(selectedLead.end_date).toLocaleDateString() : 'Nicht angegeben'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Projekt-ID: {selectedLead.project_id}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Bereits beworben: {selectedLead.applied ? 'Ja' : 'Nein'}
+                  </Typography>
+                </Box>
               </Box>
-              
               <Box>
                 <Avatar src={selectedLead.logo_url || ''} alt={selectedLead.company}>
                   {selectedLead.company.charAt(0)}
@@ -401,18 +418,6 @@ const LeadsPage: React.FC = () => {
                   </Box>
                 ))}
               </Box>
-            </Box>
-            
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="body2" color="text.secondary">
-                Bewerbungen: {selectedLead.applications}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Provider: {selectedLead.provider}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Enddatum: {selectedLead.end_date ? new Date(selectedLead.end_date).toLocaleDateString() : 'Nicht angegeben'}
-              </Typography>
             </Box>
           </Box>
         ) : (

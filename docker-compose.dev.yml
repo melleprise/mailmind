@@ -192,8 +192,15 @@ services:
       - "3000:3000"
     volumes:
       - crawl4ai_cookies:/cookies
+      - /tmp/.X11-unix:/tmp/.X11-unix # X11-Forwarding für sichtbaren Browser
+      - ./docker/playwright-login/debug:/app/debug # Mount für alle Debug-Skripte
+    environment:
+      - EMAIL_ACCOUNT_ENCRYPTION_KEY=${EMAIL_ACCOUNT_ENCRYPTION_KEY}
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DISPLAY=${DISPLAY} # X11-Forwarding für sichtbaren Browser
     networks:
       - mailmind-dev-network
+    # Hinweis: Auf dem Host muss ausgeführt werden: xhost +local:docker
 
   crawl4ai:
     build:
@@ -211,6 +218,10 @@ services:
     environment:
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-django-insecure-=ff+q1-)v2=1kk92^*x0v3o4c)wnaj1vrvz*(u83sb=st!sj7d}
       - BACKEND_API_URL=http://backend:8000
+      - PG_USER=${POSTGRES_USER:-mailmind}
+      - PG_PASSWORD=${POSTGRES_PASSWORD:-mailmind}
+      - PG_DB=${POSTGRES_DB:-mailmind}
+      - PG_HOST=postgres
     depends_on:
       - backend
       - playwright-login

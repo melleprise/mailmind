@@ -9,7 +9,7 @@ User = get_user_model()
 class FreelanceProject(models.Model):
     """Model für Freelance.de Projekte."""
     
-    project_id = models.TextField(null=False, blank=False)
+    project_id = models.TextField(null=False, blank=False, unique=True)
     title = models.TextField(null=False, blank=False)
     company = models.TextField(null=False, blank=False)
     end_date = models.TextField(null=True, blank=True)
