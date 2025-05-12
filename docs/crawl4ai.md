@@ -65,4 +65,23 @@ Crawl4AI benötigt für den `freelance.de`-Provider nicht direkt einen API-Key i
 
 ## Siehe auch
 - [Crawl4AI Docker Guide](https://docs.crawl4ai.com/core/docker-deployment/)
-- [Crawl4AI Konfiguration](https://docs.crawl4ai.com/core/installation/) 
+- [Crawl4AI Konfiguration](https://docs.crawl4ai.com/core/installation/)
+
+## Custom Endpunkte
+
+### POST /crawl-freelance-sync
+Startet einen synchronen Crawl-Prozess für freelance.de für einen bestimmten User.
+- Header: `X-User-Id: <user_id>` (Pflicht)
+- Response: `{ "status": "started", "detail": "Freelance-Crawl für User-ID <id> wurde gestartet." }`
+- Hinweis: Keine Authentifizierung über X-Internal-Auth, sondern User-Id-Header.
+
+### POST /update-api-keys
+Aktualisiert API-Keys für einen Provider und User.
+- Body: `{ "provider": "groq", "user_id": 2 }`
+- Header: `X-Internal-Auth: <SECRET_KEY>` (Pflicht)
+- Response: `{ "message": "API-Key-Update für <provider> wurde gestartet" }`
+
+### Sicherheit
+- /update-api-keys ist durch den Secret-Key geschützt.
+- /crawl-freelance-sync ist nur im internen Netzwerk verfügbar und benötigt die User-ID im Header.
+- Beide Endpunkte sind für interne Service-Kommunikation gedacht. 

@@ -22,6 +22,7 @@ class FreelanceProject(models.Model):
     description = models.TextField(default="", blank=True)
     provider = models.TextField(null=False, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    application_status = models.TextField(null=True, blank=True)
     
     class Meta:
         db_table = 'freelance_projects'
@@ -34,9 +35,7 @@ class FreelanceProviderCredential(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='freelance_credentials')
     username = models.CharField(max_length=255)
     password_encrypted = models.TextField()
-    link_1 = models.TextField()
-    link_2 = models.TextField()
-    link_3 = models.TextField(default="", blank=True)
+    link = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -54,4 +53,15 @@ class FreelanceProviderCredential(models.Model):
     def get_password(self):
         key = get_api_credential_encryption_key()
         f = Fernet(key)
-        return f.decrypt(self.password_encrypted.encode()).decode() 
+        return f.decrypt(self.password_encrypted.encode()).decode()
+
+class FreelanceGlobalConfig(models.Model):
+    login_url = models.URLField(default="https://www.freelance.de/login.php")
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Freelance Global Config"
+        verbose_name_plural = "Freelance Global Configs"
+
+    def __str__(self):
+        return f"Freelance Login URL: {self.login_url}" 

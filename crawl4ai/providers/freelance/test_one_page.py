@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Import benötigter Funktionen
-from freelance.fetch_and_process import check_cookies, get_cookie_from_playwright_login, fetch_page_with_cookies
+from freelance.fetch_and_process import check_cookies, get_cookie_from_playwright_login, fetch_protected_page_via_playwright
 
 # Konfiguration
 BASE_URL = "https://www.freelance.de"
@@ -401,7 +401,7 @@ async def test_one_page_crawl():
     logger.info(f"Starte Test-Crawling von {TEST_URL}")
     
     # Seite laden
-    html_content = await fetch_page_with_cookies(TEST_URL)
+    html_content = await fetch_protected_page_via_playwright(TEST_URL)
     if not html_content:
         logger.error("Seite konnte nicht geladen werden.")
         return False

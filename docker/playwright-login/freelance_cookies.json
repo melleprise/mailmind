@@ -1,0 +1,266 @@
+{
+  "cookies": [
+    {
+      "name": "__cf_bm",
+      "value": "eGfx_aT0cmY8444FK7xCWbQ6n9gNp3.5sU.0X8m1Yqs-1747046168-1.0.1.1-8bXpZshHxQiYEd6Lnw7QIQ60Pji3EhF74DdOwebU1xR9B43SFjo6.rnzpC1chJnoESLtOeW8aqrccirjjGd18gJjCyt.KqxqDGGcfm9zxC8",
+      "domain": ".hs-scripts.com",
+      "path": "/",
+      "expires": 1747047968.483519,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_ga",
+      "value": "GA1.1.534062623.1747046169",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": 1781606181.751319,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "FPID",
+      "value": "FPID2.2.IR8nEjDAeypzpv3iqx5gNdo1cjfiawsSY2ItJwcQnQ0%3D.1747046169",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": 1781606181.932595,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "FPLC",
+      "value": "0SsiF2nqYZLXykK8MeRIUCE0k3gyV8u9gVqkz9jSpKpvSiX2f8yd%2BV5B99TMjdlKRjnVYbZpt%2FeXdylv7qdvGqqoOazXpd68ErsCXgycfzG2DKLa9tobry39EAc39w%3D%3D",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": 1747118169.152237,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "CookieConsent",
+      "value": "{stamp:%27ZZR2FARe1jqbWbuF9Vzb8PGqTyBoyBvHUE/OzYr9tG3dc43j5cv5Tg==%27%2Cnecessary:true%2Cpreferences:true%2Cstatistics:true%2Cmarketing:true%2Cmethod:%27explicit%27%2Cver:1%2Cutc:1747046169205%2Cregion:%27pt%27}",
+      "domain": "www.freelance.de",
+      "path": "/",
+      "expires": 1778582169,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "FPAU",
+      "value": "1.1.1760605583.1747046169",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": 1754822168.887614,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "r0f8RfGn5ZLwgomM7__qCbbaXlYRI30SDwAUKxDqVBE-1747046169-1.0.1.1-fcn4yUYMMIWpqfUwmqq3TS6Eh_IaIq8WlNuRIB1iyXNOR.voNfz1VW3fLTibqeeqTq9f8q3pa4Ul1RrMDG.yaKX1Nm1prt5dxj392xXfwXE",
+      "domain": ".hsadspixel.net",
+      "path": "/",
+      "expires": 1747047969.471965,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "6w7BzFSGFJ1RbU02veqJoZf5AN2ne68Oom0s.qbnRGY-1747046169-1.0.1.1-IArGI9WcvE2AAXuNyh7gtTQkgQhFOGRpWkZdp2m8jOacWqmUPSaXz.CAyV8FA9D6yUpqR_wpjZkKXUGj6DWuw4b9R_GCCf.MOrvD3_qsJVM",
+      "domain": ".hs-banner.com",
+      "path": "/",
+      "expires": 1747047969.537895,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "5AF0.RNRgbX5W4ahRuMGe40jJ81nCHSe8TUyXHI3tT4-1747046169-1.0.1.1-6RoLamwwPKSenvYUguKpWEicZ_RejuFMAoVSYNNiQJNSsaGHgxDzfsTgeJstDR.1xsiUL63RBx5npmFzOS1fLVVsM4Ib0U_0dpKthQHHEK0",
+      "domain": ".hs-analytics.net",
+      "path": "/",
+      "expires": 1747047969.576186,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__hstc",
+      "value": "213212171.5fe4fa1a72640e86e76bf656975e6edf.1747046169595.1747046169595.1747046169595.1",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": 1762598182,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "hubspotutk",
+      "value": "5fe4fa1a72640e86e76bf656975e6edf",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": 1762598182,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__hssrc",
+      "value": "1",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "lidc",
+      "value": "\"b=OGST01:s=O:r=O:a=O:p=O:g=3608:u=1:x=1:i=1747046169:t=1747132569:v=2:sig=AQFiEBBlPqO6TgSJEaCAu9PVO8CramB-\"",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1747132569.956948,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "value": "5NS_e_jDvzMWJskhVe1qt4UaYnkb4_mbTFfiDaGWzYI-1747046170-1.0.1.1-ISLIVXEoyBfklZYM8y6XjrK65LIi7gM9.M1GpaGLtjAIBUtld.vKRR_DrgKEvoUO1HJBouKTGJCO2CKvFN93lzafWwED33as9D7zhYWadKo",
+      "domain": ".hubspot.com",
+      "path": "/",
+      "expires": 1747047969.945609,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_cfuvid",
+      "value": "3aqXuuakABPihNzfhPUvoy0syka2EtE7DtZvTTNvAwg-1747046170022-0.0.1.1-604800000",
+      "domain": ".hubspot.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "bcookie",
+      "value": "\"v=2&024577b2-b2f3-4dda-833d-10dba166a848\"",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1778582169.956906,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "li_gc",
+      "value": "MTswOzE3NDcwNDYxNjk7MjswMjHLdPsqhUdO6Dbnf6q9frR05QmA9oVJJwyiEW7/RR08vA==",
+      "domain": ".linkedin.com",
+      "path": "/",
+      "expires": 1762598169.956933,
+      "httpOnly": false,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "__cf_bm",
+      "value": ".few48ScpKoJRekcpdy53rNQKvMc_i3J2qFMrdUBX1E-1747046170-1.0.1.1-g1Fyt.GpS2DH.WfWnnclWjt0FDbcrt.e1SdpR8uUzClWE7nCQ3MzCjUybUvY5NmUKuIXQb13Qq9mQc.RI0E6Ia3c4_S0SkL3WHwfox_EABk",
+      "domain": ".hsforms.com",
+      "path": "/",
+      "expires": 1747047970.167866,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_cfuvid",
+      "value": "MxfySnPccn3R8DKb005EQBtTlNHzGAV7lmmjS6n5X40-1747046170248-0.0.1.1-604800000",
+      "domain": ".hsforms.com",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "IDE",
+      "value": "AHWqTUkiM2nAwXnRToFfmF3qUFMeeiHTSyurYbPo0NTQ9ts81Z-JQdCRd4T8EOuG",
+      "domain": ".doubleclick.net",
+      "path": "/",
+      "expires": 1780742170.579832,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "None"
+    },
+    {
+      "name": "_gcl_au",
+      "value": "1.1.1760605583.1747046169.1945531300.1747046171.1747046173",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": 1754822169,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "sso",
+      "value": "DC7B3564FA273FD39A031A718ED4CE68",
+      "domain": "www.freelance.de",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "freelance",
+      "value": "i2cIAlq21TTQSz_OV_J2nMRYqtpWcfKKmXCPlYcRim8jUKlPtiJ_7mxkRx7Xwg%206bbee9af33b73251c76037798f4e5f81",
+      "domain": "www.freelance.de",
+      "path": "/",
+      "expires": 1749638174.504447,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "no_postlogin_FL_-_Post_Login_315468",
+      "value": "true",
+      "domain": "www.freelance.de",
+      "path": "/",
+      "expires": 1749638180.405772,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "_ga_YRC3C01WDY",
+      "value": "GS2.1.s1747046168$o1$g1$t1747046181$j0$l0$h152236895",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": 1781606181.757733,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    },
+    {
+      "name": "__hssc",
+      "value": "213212171.3.1747046169595",
+      "domain": ".freelance.de",
+      "path": "/",
+      "expires": 1747047982,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "localStorage": "{\"_gcl_ls\":\"{\\\"schema\\\":\\\"gcl\\\",\\\"version\\\":1,\\\"gcl_ctr\\\":{\\\"value\\\":{\\\"value\\\":0,\\\"creationTimeMs\\\":1747046169641},\\\"expires\\\":1754822169641}}\"}",
+  "sessionStorage": "{}"
+}

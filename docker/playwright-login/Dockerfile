@@ -28,5 +28,11 @@ RUN apt-get update && apt-get install -y \
     libxkbcommon0 \
     && rm -rf /var/lib/apt/lists/*
 
+# Python3 und pip installieren
+RUN apt-get update && apt-get install -y python3 python3-pip && rm -rf /var/lib/apt/lists/*
+
+# Python-Abhängigkeiten für das Testskript
+RUN pip3 install httpx beautifulsoup4
+
 EXPOSE 3000
 CMD ["node", "index.js"] 

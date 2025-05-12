@@ -40,7 +40,7 @@ if providers_dir not in sys.path:
     sys.path.insert(0, providers_dir)
 
 # Import aus dem freelance-Verzeichnis für die vorhandenen Funktionen
-from freelance.fetch_and_process import check_cookies, get_cookie_from_playwright_login
+from freelance.fetch_and_process import check_cookies, get_cookie_from_playwright_login, fetch_protected_page_via_playwright
 
 class ProjectDetailExtractor:
     """Extrahiert Detailinformationen aus Projektdetailseiten"""
@@ -348,19 +348,19 @@ async def fetch_project_details_page(project_id: str, url: str = None) -> Option
             
         logger.info(f"Lade Projektdetails für ID {project_id} von URL: {detail_url}")
         
-        # HTTP-Request mit Cookies ausführen
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            }
-            response = await client.get(detail_url, cookies=cookies, headers=headers)
-            
-            if response.status_code == 200:
-                logger.info(f"Projektdetailseite für ID {project_id} erfolgreich geladen. Content-Length: {len(response.text)}")
-                return response.text
-            else:
-                logger.error(f"Fehler beim Laden der Projektdetailseite für ID {project_id}: {response.status_code}")
-                return None
+        # NEU: Playwright-Login-Service für geschützte Seite nutzen
+        html = await fetch_protected_page_via_playwright(detail_url)
+        if html:
+            # HTML-Dump speichern
+            logger.info(f"[DUMP-DEBUG] Versuche Dump zu schreiben: {dump_path}")
+            dump_path = os.path.join(os.path.dirname(__file__), 'detail_dump.html')
+            with open(dump_path, 'w') as dumpfile:
+                dumpfile.write(html)
+            logger.info(f"[DUMP-DEBUG] Dump erfolgreich geschrieben: {dump_path}")
+            return html
+        else:
+            logger.error(f"Fehler beim Laden der Projektdetailseite für ID {project_id} via Playwright")
+            return None
     except Exception as e:
         logger.error(f"Fehler beim Laden der Projektdetailseite für ID {project_id}: {e}")
         return None

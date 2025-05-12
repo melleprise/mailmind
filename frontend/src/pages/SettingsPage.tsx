@@ -255,14 +255,10 @@ const SettingsPage: React.FC = () => {
           <FreelanceProviderCredentialForm 
             initialValues={credentials ? {
               username: credentials.username,
-              link_1: credentials.link_1,
-              link_2: credentials.link_2,
-              link_3: credentials.link_3 || ''
+              link: credentials.link,
             } : {
               username: '',
-              link_1: '',
-              link_2: '',
-              link_3: ''
+              link: '',
             }}
             onSave={handleSaveCredentials}
             onDelete={handleDeleteCredentials}

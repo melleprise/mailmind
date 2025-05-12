@@ -107,4 +107,22 @@ async def crawl_freelance_sync(
     background_tasks.add_task(run_crawl_task)
     return {"status": "started", "detail": f"Freelance-Crawl für User-ID {x_user_id} wurde gestartet."}
 
+@router.get("/get-freelance-projects")
+async def get_freelance_projects(x_user_id: int = Header(..., alias="X-User-Id")):
+    """Gibt alle Freelance-Projekte für einen User zurück (inkl. application_status)."""
+    import asyncpg
+    DB_USER = os.environ.get("DB_USER", "mailmind")
+    DB_PASSWORD = os.environ.get("DB_PASSWORD", "mailmind")
+    DB_HOST = os.environ.get("DB_HOST", "postgres")
+    DB_PORT = os.environ.get("DB_PORT", "5432")
+    DB_NAME = os.environ.get("DB_NAME", "mailmind")
+    DB_TABLE = "freelance_projects"
+    conn = await asyncpg.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT, database=DB_NAME)
+    try:
+        rows = await conn.fetch(f"SELECT * FROM {DB_TABLE} WHERE provider = 'freelance'")
+        projects = [dict(row) for row in rows]
+        return {"projects": projects}
+    finally:
+        await conn.close()
+
 # Die setup_routes Funktion wird nicht mehr benötigt, da der Router direkt importiert wird. 

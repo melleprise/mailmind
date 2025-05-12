@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Import aus dem freelance-Verzeichnis
-from freelance.fetch_and_process import BASE_URL, fetch_page_with_cookies
+from freelance.fetch_and_process import BASE_URL, fetch_protected_page_via_playwright
 from freelance.crawl_all_projects import extract_project_from_card, create_table_if_not_exists, save_projects_to_db, get_db_connection
 
 # Simulierte Projektbeschreibung für Testzwecke
@@ -73,7 +73,7 @@ async def fetch_project_description(project_url: str) -> str:
     """Scrape die Projektbeschreibung von der Detailseite"""
     try:
         logger.info(f"Lade Projektdetails: {project_url}")
-        html_content = await fetch_page_with_cookies(project_url)
+        html_content = await fetch_protected_page_via_playwright(project_url)
         
         if not html_content:
             logger.error(f"Fehler beim Laden der Projektdetails: {project_url}")
@@ -127,7 +127,7 @@ async def crawl_one_project():
     url = f'{BASE_URL}/projekte?pageSize=10&page=1&remotePreference=remote_remote--remote'
     logger.info(f"Lade Übersichtsseite: {url}")
     
-    html_content = await fetch_page_with_cookies(url)
+    html_content = await fetch_protected_page_via_playwright(url)
     if not html_content:
         logger.error("Fehler beim Laden der Übersichtsseite.")
         return []

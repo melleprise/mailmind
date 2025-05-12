@@ -1010,9 +1010,8 @@ export const refineEmailReply = async (emailId: number, payload: RefineReplyPayl
 export interface FreelanceProviderCredential {
   id: number;
   username: string;
-  link_1: string;
-  link_2: string;
-  link_3: string;
+  password: string;
+  link: string;
   created_at: string;
   updated_at: string;
 }

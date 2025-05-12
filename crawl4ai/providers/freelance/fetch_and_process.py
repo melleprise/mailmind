@@ -11,7 +11,7 @@ from datetime import datetime
 import logging
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse, parse_qs, urlencode, urlunparse
-from slugify import slugify
+# from slugify import slugify
 import subprocess
 import asyncpg
 import argparse
@@ -60,6 +60,7 @@ class FreelanceProject(BaseModel):
     url: str
     applications: Optional[int] = None
     description: str = ""
+    application_status: Optional[str] = None
     provider: str = PROVIDER
     created_at: str = datetime.now().isoformat()
     
@@ -77,6 +78,7 @@ class FreelanceProject(BaseModel):
             "url": self.url,
             "applications": self.applications,
             "description": self.description,
+            "application_status": self.application_status,
             "provider": self.provider,
             "created_at": self.created_at
         }
@@ -213,11 +215,11 @@ async def fetch_page_with_cookies(url: str, user_id: int, specific_referer: Opti
             logger.info(f"Verwende spezifischen Referer: {actual_referer} für Anfrage an {url}")
         elif "/projekt-" in url: # Nur für Detailseiten einen Fallback-Referer setzen
             creds = await get_user_credentials(user_id)
-            if creds and creds.get("link_2"):
-                actual_referer = creds.get("link_2") # link_2 ist die Projektübersichtsseite mit Parametern
-                logger.info(f"Verwende link_2 als Fallback-Referer: {actual_referer} für Anfrage an {url}")
+            if creds and creds.get("link"):
+                actual_referer = creds.get("link") # link ist die Projektübersichtsseite mit Parametern
+                logger.info(f"Verwende link als Fallback-Referer: {actual_referer} für Anfrage an {url}")
             else:
-                # Fallback auf statischen Referer, wenn link_2 nicht verfügbar
+                # Fallback auf statischen Referer, wenn link nicht verfügbar
                 actual_referer = f"{BASE_URL}/projekte"
                 logger.info(f"Verwende statischen Fallback-Referer: {actual_referer} für Anfrage an {url}")
         else:
@@ -270,10 +272,7 @@ async def fetch_page_with_cookies(url: str, user_id: int, specific_referer: Opti
 
 def extract_project_id(url: str) -> str:
     """Extrahiert die Projekt-ID aus der URL"""
-    match = re.search(r'projekt-(\d+)', url)
-    if match:
-        return match.group(1)
-    return f"unknown-{slugify(url)}"
+    return f"unknown-{url.replace('/', '_')}"
 
 def extract_applications_info(text: str) -> Optional[int]:
     """Extrahiert die Anzahl der Bewerbungen aus dem Text"""
@@ -592,9 +591,9 @@ async def save_projects_to_db(conn, projects: List[FreelanceProject]):
     insert_query = f"""
         INSERT INTO {DB_SCHEMA}.{DB_TABLE} (
             project_id, title, company, end_date, location, remote,
-            last_updated, skills, url, applications, description, provider, created_at
+            last_updated, skills, url, applications, description, application_status, provider, created_at
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
         )
         ON CONFLICT (project_id) DO UPDATE SET
             title = EXCLUDED.title,
@@ -607,6 +606,7 @@ async def save_projects_to_db(conn, projects: List[FreelanceProject]):
             url = EXCLUDED.url,
             applications = EXCLUDED.applications,
             description = EXCLUDED.description,
+            application_status = EXCLUDED.application_status,
             provider = EXCLUDED.provider,
             created_at = EXCLUDED.created_at;
     """
@@ -619,7 +619,7 @@ async def save_projects_to_db(conn, projects: List[FreelanceProject]):
                 p_dict['project_id'], p_dict['title'], p_dict['company'], p_dict['end_date'],
                 p_dict['location'], p_dict['remote'], p_dict['last_updated'], 
                 json.dumps(p_dict['skills']) if p_dict['skills'] else None, # Skills als JSON String Array
-                p_dict['url'], p_dict['applications'], p_dict['description'], p_dict['provider'],
+                p_dict['url'], p_dict['applications'], p_dict['description'], p_dict['application_status'], p_dict['provider'],
                 datetime.fromisoformat(p_dict['created_at']) # created_at als datetime-Objekt
             ))
 
@@ -628,240 +628,194 @@ async def save_projects_to_db(conn, projects: List[FreelanceProject]):
     except Exception as e:
         logger.error(f"Fehler beim Speichern der Projekte in die Datenbank: {e}", exc_info=True)
 
+async def fetch_protected_page_via_playwright(url: str, user_id: int) -> Optional[str]:
+    """Holt eine geschützte Seite über den Playwright-Login-Service (Browser-Kontext)."""
+    try:
+        playwright_url = "http://playwright-login:3000/fetch-protected-page"
+        logger.info(f"[DEBUG] Sende POST an {playwright_url} mit url={url} und user_id={user_id}")
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(playwright_url, json={"user_id": user_id, "url": url})
+            logger.info(f"[DEBUG] Response Status: {resp.status_code}, Content-Type: {resp.headers.get('content-type')}, Body (Anfang): {resp.text[:300]}")
+            if resp.status_code == 200 and resp.json().get("success"):
+                logger.info(f"[DEBUG] Playwright-Response success=true, HTML-Länge: {len(resp.json().get('html',''))}")
+                # HTML-Dump speichern
+                try:
+                    import os
+                    dump_path = os.path.join(os.path.dirname(__file__), 'detail_dump.html')
+                    with open(dump_path, 'w') as dumpfile:
+                        dumpfile.write(resp.json().get('html',''))
+                    logger.info(f"[DUMP-DEBUG] Dump erfolgreich geschrieben: {dump_path}")
+                except Exception as dump_exc:
+                    logger.error(f"[DUMP-DEBUG] Fehler beim Schreiben des Dumps: {dump_exc}")
+                return resp.json().get("html")
+            else:
+                logger.error(f"Fehler beim Abruf via Playwright-Login-Service: {resp.text}")
+                return None
+    except Exception as e:
+        logger.error(f"Exception beim Abruf via Playwright-Login-Service: {e}")
+        return None
+
 async def fetch_project_description(project_url: str, user_id: int, PaginierungsReferrer: Optional[str] = None) -> str:
     """Lädt die Detailseite eines Projekts und extrahiert die Beschreibung."""
-    logger.info(f"Lade Detailseite für Projekt: {project_url}")
-    html_content = await fetch_page_with_cookies(project_url, user_id, specific_referer=PaginierungsReferrer)
-    if not html_content:
-        logger.warning(f"Konnte HTML-Inhalt für {project_url} nicht laden.")
-        return ""
-    
     try:
-        soup = BeautifulSoup(html_content, 'html.parser')
-        description_text = ""
-
-        # --- BEGIN NEW SPECIFIC METHOD ---
-        # Finde das H2 Element mit dem Text "Projektbeschreibung"
-        # Wir verwenden eine Lambda-Funktion, um den Text exakt zu matchen und Leerzeichen zu ignorieren.
-        project_description_heading_tag = soup.find(
-            lambda tag: tag.name == 'h2' and tag.get_text(strip=True) == "Projektbeschreibung"
-        )
-
-        if project_description_heading_tag:
-            # Die Überschrift ist in einem <div class="panel-heading">
-            panel_heading_div = project_description_heading_tag.find_parent('div', class_='panel-heading')
-            if panel_heading_div:
-                # Die Beschreibung ist im nächsten Geschwister-Div mit den Klassen 'panel-body' und 'highlight-text'
-                description_element = panel_heading_div.find_next_sibling(
-                    'div', class_='panel-body highlight-text' 
-                )
-                if description_element:
-                    logger.info(f"Beschreibung für {project_url} mit spezifischer Methode (H2 'Projektbeschreibung') gefunden. Länge: {len(description_element.get_text(strip=True))}")
-                    # Entferne unerwünschte Elemente (sollte hier nicht nötig sein, aber zur Sicherheit)
-                    for unwanted_tag in description_element.select('a.btn-report-project, .project-detail-report-link'):
-                        unwanted_tag.decompose()
-                    description_text = description_element.get_text(separator='\\n', strip=True)
-                    logger.debug(f"Ausschnitt Beschreibung (spezifisch): {description_text[:120]}")
-        # --- END NEW SPECIFIC METHOD ---
-
-        if not description_text:
-            logger.info("Spezifische Methode zur Beschreibungsextraktion fehlgeschlagen oder nicht anwendbar. Versuche generische Selektoren.")
-            # Fallback auf bestehende generische Selektoren
-            description_selectors = [
-                'div.project-description', 
-                '#project_description', 
-                '.description-text', 
-                'article .project-detail-description',
-                'div[itemprop="description"]',
-                'section.description',
-                '.project-detail--description',
-                'div[data-testid="project-description"]'
-            ]
-            for selector in description_selectors:
-                description_element = soup.select_one(selector)
-                if description_element:
-                    logger.info(f"Beschreibung für {project_url} mit generischem Selektor '{selector}' gefunden. Länge: {len(description_element.get_text(strip=True))}")
-                    for unwanted_tag in description_element.select('a.btn-report-project, .project-detail-report-link'):
-                        unwanted_tag.decompose()
-                    description_text = description_element.get_text(separator='\\n', strip=True)
-                    logger.debug(f"Ausschnitt Beschreibung (generisch, {selector}): {description_text[:120]}")
-                    if description_text: # Nur verwenden, wenn auch Text extrahiert wurde
-                        break 
-        
-        if not description_text:
-            logger.info("Generische Selektoren fehlgeschlagen. Versuche Fallback auf Haupt-Inhaltsbereiche.")
-            # Fallback: Versuche, den Text aus dem Haupt-Inhaltsbereich zu extrahieren, und bereinige aggressiver
-            # Der Container #js-main wurde im HTML gesehen, das ist ein guter Kandidat
-            main_content_selectors = ['#js-main', 'article', '.main', '#project_container', '.content'] 
-            for selector in main_content_selectors:
-                main_element = soup.select_one(selector)
-                if main_element:
-                    # Entferne bekannte Nicht-Beschreibungs-Blöcke sehr gezielt
-                    for unwanted_selector in [
-                        '.breadcrumb-box', '.project-header', '.panel-heading', '.action',
-                        '#ihre_bewerbung', '#create_application', '.project-insights', '.company-name',
-                        '#detail-quickbuttons', '.project-categories', 'h1', 'h3',
-                        'form', 'button', 'input', 'select', '.owl-carousel', '.footnote', '.benefits',
-                        'script', 'style', 'noscript', 'iframe', 'header', 'footer', '.navbar', '.avatar',
-                        'ul.icon-list', '.dropdown-menu', '.clearfix.visible-xs', '.alert'
-                    ]:
-                        for tag_to_remove in main_element.select(unwanted_selector):
-                            tag_to_remove.decompose()
-                    
-                    # Was übrig bleibt, könnte die Beschreibung sein
-                    temp_text = main_element.get_text(separator='\\n', strip=True)
-                    logger.debug(f"Ausschnitt Beschreibung (Fallback, {selector}): {temp_text[:120]}")
-                    # Zusätzliche Verfeinerung: Oft steht "Projektbeschreibung" nochmal als Text da, den wollen wir nicht als Teil der Beschreibung
-                    temp_text = re.sub(r"^[\\s*Projektbeschreibung\\s*]*", "", temp_text, flags=re.IGNORECASE | re.MULTILINE).strip()
-
-                    if len(temp_text) > 100: # Nur wenn substantieller Text übrig bleibt
-                        description_text = temp_text
-                        logger.warning(f"Keine spezifische Beschreibung für {project_url} gefunden. Fallback auf Haupt-Inhalts-Selektor '{selector}' (aggressiv bereinigt) verwendet. Länge: {len(temp_text)}")
-                        break
-        
-        if not description_text:
-            logger.warning(f"Konnte auch mit allen Fallbacks keine Beschreibung für Projekt {project_url} extrahieren. HTML-Body (Anfang), der verarbeitet wurde:")
-            body_tag = soup.find('body')
-            current_html_snippet = str(body_tag.prettify())[:3000] if body_tag else html_content[:3000]
-            logger.info(current_html_snippet)
+        html = await fetch_protected_page_via_playwright(project_url, user_id)
+        if not html:
+            logger.warning(f"Konnte HTML-Inhalt für {project_url} nicht laden (Playwright-Bypass).")
+            return ""
+        soup = BeautifulSoup(html, 'html.parser')
+        description = ""
+        # NEU: Bewerbungsstatus extrahieren
+        if soup.find(id="marker_application_sent"):
+            application_status = soup.find(id="marker_application_sent").get_text(separator=' ', strip=True)
         else:
-            logger.info(f"Finale Beschreibung für {project_url} extrahiert. Länge: {len(description_text)}")
-            logger.debug(f"Finale Beschreibung (Ausschnitt): {description_text[:200]}")
-        
-        return description_text.strip()
+            status_panel = soup.find('div', class_='panel-body')
+            application_status = None
+            if status_panel and 'highlight-text' not in status_panel.get('class', []):
+                status_text = status_panel.get_text(separator='\n', strip=True)
+                if re.search(r'beworben|Sie haben sich am|Bewerbung am|Bewerbungsdatum', status_text, re.IGNORECASE):
+                    application_status = status_text
+                else:
+                    application_status = None
+        desc_panel = soup.find('div', class_='panel-body highlight-text')
+        if desc_panel:
+            description = desc_panel.get_text(separator='\n', strip=True)
+        else:
+            desc = soup.find('div', class_='project-description')
+            description = desc.text.strip() if desc else ""
+        return description
     except Exception as e:
-        logger.error(f"Fehler beim Extrahieren der Beschreibung für {project_url}: {e}", exc_info=True)
+        logger.error(f"Fehler beim Laden der Projektbeschreibung für {project_url}: {e}")
         return ""
 
 async def crawl_until_existing(user_id: int, max_pages: int = 10, page_size: int = 100, delay_seconds: float = 1.0, fetch_descriptions: bool = False, retry_count: int = 3):
-    creds = await get_user_credentials(user_id)
-    if not creds:
-        logger.error(f"Keine gültigen Basis-Credentials (URL etc.) für user_id={user_id} gefunden. Abbruch.")
-        return []
-    
-    projects_base_url = creds.get("link_2")
-
-    if not projects_base_url:
-        logger.error(f"Keine projects_base_url (link_2) in den Credentials für user_id={user_id} gefunden. Abbruch.")
-        return []
-
-    all_projects = []
-    all_new_ids = set()
-    current_page = 1
-    has_next_page = True
     conn = await get_db_connection()
     if not conn:
         logger.error("Konnte keine DB-Verbindung herstellen.")
         return []
     try:
-        while has_next_page and current_page <= max_pages:
-            current_pagination_url = build_pagination_url(projects_base_url, current_page, page_size)
-            logger.info(f"Crawle Seite {current_page} mit URL: {current_pagination_url}")
-            html_content_for_page = None # Initialisieren für den Fall, dass die Schleife nicht erfolgreich ist
-            for attempt in range(retry_count):
-                try:
-                    html_content_for_page = await fetch_page_with_cookies(current_pagination_url, user_id)
-                    if html_content_for_page:
-                        break
-                except Exception as e:
-                    logger.error(f"Fehler beim Laden von Seite {current_page} ({current_pagination_url}), Versuch {attempt+1}: {e}")
-                    await asyncio.sleep(2)
-            else: # Wird ausgeführt, wenn die Schleife ohne break endet
-                logger.error(f"Seite {current_page} ({current_pagination_url}) konnte nach {retry_count} Versuchen nicht geladen werden. Überspringe diese Seite.")
-                # Setze Paginierungsinfos, um ggf. fortzufahren oder korrekt abzubrechen
-                if html_content_for_page: # Sollte hier None sein, aber zur Sicherheit
-                    pagination = get_pagination_info(html_content_for_page)
-                    has_next_page = pagination["has_next_page"]
-                else: # Wenn kein HTML geladen werden konnte, können wir nicht wissen, ob es weitere Seiten gibt.
-                    logger.warning("Da die Seite nicht geladen werden konnte, wird angenommen, dass es keine weiteren Seiten gibt.")
-                    has_next_page = False 
-                current_page += 1
-                continue # Gehe zur nächsten Iteration der while-Schleife (nächste Seite)
-
+        creds = await get_user_credentials(user_id)
+        if not creds:
+            logger.error(f"Keine gültigen Basis-Credentials (URL etc.) für user_id={user_id} gefunden. Abbruch.")
+            return []
+        projects_base_url = creds.get("link")
+        if not projects_base_url:
+            logger.error(f"Keine projects_base_url (link) in den Credentials für user_id={user_id} gefunden. Abbruch.")
+            return []
+        all_projects = []
+        all_new_ids = set()
+        # --- Pagination-Logik wie in der Doku: ---
+        # 1. Erste Seite laden
+        first_overview_url = build_pagination_url(projects_base_url, 1, page_size)
+        logger.info(f"Lade erste Übersichtsseite: {first_overview_url}")
+        first_html = None
+        try:
+            first_html = await fetch_protected_page_via_playwright(first_overview_url, user_id)
+        except Exception as e:
+            logger.error(f"Fehler beim Laden der ersten Übersichtsseite: {e}")
+        if not first_html:
+            logger.error("Konnte erste Übersichtsseite nicht laden. Abbruch.")
+            return []
+        pagination = get_pagination_info(first_html)
+        total_pages = min(pagination.get('total_pages', 1), max_pages)
+        logger.info(f"Gefundene Seitenanzahl: {total_pages}")
+        # 2. Alle echten Seiten-URLs bauen
+        overview_urls = [build_pagination_url(projects_base_url, p, page_size) for p in range(1, total_pages+1)]
+        session_html_map = {overview_urls[0]: first_html}
+        # 3. Restliche Seiten in einer Session laden
+        if fetch_descriptions and len(overview_urls) > 1:
+            try:
+                playwright_url = "http://playwright-login:3000/crawl-session"
+                logger.info(f"[SESSION] Sende {len(overview_urls)-1} weitere Übersichtsseiten an Playwright-Login-Service...")
+                async with httpx.AsyncClient(timeout=300.0) as client:
+                    resp = await client.post(playwright_url, json={"user_id": user_id, "overview_urls": overview_urls[1:], "detail_urls": []})
+                    if resp.status_code == 200 and resp.json().get("success"):
+                        for entry in resp.json()["overview_results"]:
+                            if entry.get("success"):
+                                session_html_map[entry["url"]] = entry["html"]
+                            else:
+                                logger.error(f"[SESSION] Fehler für {entry.get('url')}: {entry.get('error')}")
+                    else:
+                        logger.error(f"[SESSION] Fehlerhafte Antwort vom Playwright-Login-Service: {resp.text}")
+            except Exception as e:
+                logger.error(f"[SESSION] Exception beim Session-Request: {e}")
+        # --- NEU: Projektdaten aus den geladenen HTMLs extrahieren ---
+        for url in overview_urls:
+            html_content_for_page = session_html_map.get(url)
+            if not html_content_for_page:
+                continue
             projects_on_this_page = extract_project_data(html_content_for_page)
             if not projects_on_this_page:
-                logger.info(f"Keine Projekte mehr auf Seite {current_page} ({current_pagination_url}) gefunden. Beende Crawling.")
-                break
-
+                continue
             ids_on_this_page = [p['project_id'] for p in projects_on_this_page]
             existing_ids_on_this_page = await get_existing_project_ids(conn, ids_on_this_page)
-            
             new_projects_from_this_page = []
             for p in projects_on_this_page:
                 if p['project_id'] not in existing_ids_on_this_page:
-                    # Speichere den Referrer der aktuellen Paginierungsseite mit dem Projekt
-                    p['_source_page_url'] = current_pagination_url 
+                    p['_source_page_url'] = url
                     new_projects_from_this_page.append(p)
-            
             all_projects.extend(new_projects_from_this_page)
             all_new_ids.update(p['project_id'] for p in new_projects_from_this_page)
-            
-            logger.info(f"{len(new_projects_from_this_page)} neue Projekte, {len(existing_ids_on_this_page)} bekannte IDs auf Seite {current_page} ({current_pagination_url}).")
-
-            # Abbruchbedingung: Wenn *alle* Projekte auf der aktuellen Seite bekannt sind UND es neue Projekte von dieser Seite gab
-            # ODER wenn es keine neuen Projekte von dieser Seite gab und bereits bekannte IDs gefunden wurden.
-            # Dies ist eine Verfeinerung, um nicht abzubrechen, wenn nur ein Teil bekannt ist, aber noch neue da sind.
-            if existing_ids_on_this_page and not new_projects_from_this_page:
-                 logger.info(f"Auf Seite {current_page} wurden nur bekannte Projekt-IDs gefunden und keine neuen. Breche das Crawling ab.")
-                 break
-            if len(existing_ids_on_this_page) == len(ids_on_this_page) and ids_on_this_page: # Alle auf der Seite sind bekannt
-                 logger.info(f"Alle {len(ids_on_this_page)} Projekte auf Seite {current_page} sind bereits bekannt. Breche das Crawling ab.")
-                 break
-
-            pagination = get_pagination_info(html_content_for_page)
-            has_next_page = pagination["has_next_page"]
-            current_page += 1
-            await asyncio.sleep(delay_seconds)
-
         logger.info(f"Starte Detailseiten-Crawl für {len(all_projects)} potenziell neue Projekte...")
-        # Filtere hier nochmal, um sicherzustellen, dass wir nur Projekte mit _source_page_url bearbeiten,
-        # die also tatsächlich als neu identifiziert wurden und denen ein Referrer zugeordnet wurde.
         projects_to_fetch_details_for = [p for p in all_projects if '_source_page_url' in p]
-
-        # Erstelle FreelanceProject-Instanzen erst *nachdem* die Basisdaten und ggf. Beschreibungen da sind
-        # und bevor sie in die DB gespeichert werden.
-        # Wir erstellen eine neue Liste für die Objekte, die in die DB sollen.
-        
+        # --- Detailseiten-Session-Request ---
+        detail_urls = [p['url'] for p in all_projects if p.get('url')]
+        session_html_map = {}
+        if fetch_descriptions and detail_urls:
+            try:
+                playwright_url = "http://playwright-login:3000/crawl-session"
+                logger.info(f"[SESSION] Sende {len(detail_urls)} Detailseiten an Playwright-Login-Service...")
+                async with httpx.AsyncClient(timeout=300.0) as client:
+                    resp = await client.post(playwright_url, json={"user_id": user_id, "overview_urls": [], "detail_urls": detail_urls})
+                    if resp.status_code == 200 and resp.json().get("success"):
+                        for entry in resp.json()["detail_results"]:
+                            if entry.get("success"):
+                                session_html_map[entry["url"]] = entry["html"]
+                            else:
+                                logger.error(f"[SESSION] Fehler für {entry.get('url')}: {entry.get('error')}")
+                    else:
+                        logger.error(f"[SESSION] Fehlerhafte Antwort vom Playwright-Login-Service: {resp.text}")
+            except Exception as e:
+                logger.error(f"[SESSION] Exception beim Session-Request: {e}")
         final_projects_for_db = []
-
-        logger.info(f"Anzahl der Projekte, für die Details abgerufen werden (nach Filterung): {len(projects_to_fetch_details_for)}")
-
         for project_dict in projects_to_fetch_details_for:
             if fetch_descriptions and project_dict.get('url'):
-                detail_page_referer = project_dict.get('_source_page_url') # Der exakte Referrer
-                if not detail_page_referer:
-                    logger.warning(f"Kein '_source_page_url' für Projekt {project_dict.get('project_id')} gefunden. Verwende Fallback-Referrer.")
-                    detail_page_referer = creds.get("link_2") # Fallback, falls etwas schiefgeht
-
-                description = ""
-                for attempt in range(retry_count):
-                    try:
-                        description = await fetch_project_description(project_dict['url'], user_id, PaginierungsReferrer=detail_page_referer)
-                        break 
-                    except Exception as e:
-                        logger.error(f"Fehler beim Laden der Detailseite {project_dict['url']} (Versuch {attempt+1}): {e}")
-                        if attempt < retry_count - 1:
-                             await asyncio.sleep(2)
-                        else:
-                            logger.error(f"Konnte Beschreibung für {project_dict['url']} nach {retry_count} Versuchen nicht laden.")
-                project_dict['description'] = description # Füge Beschreibung hinzu oder leeren String, falls fehlgeschlagen
-            
-            # Entferne den temporären _source_page_url Key, bevor das FreelanceProject Objekt erstellt wird
+                html = session_html_map.get(project_dict['url'])
+                if html:
+                    soup = BeautifulSoup(html, 'html.parser')
+                    description = ""
+                    # NEU: Bewerbungsstatus extrahieren
+                    if soup.find(id="marker_application_sent"):
+                        application_status = soup.find(id="marker_application_sent").get_text(separator=' ', strip=True)
+                    else:
+                        status_panel = soup.find('div', class_='panel-body')
+                        application_status = None
+                        if status_panel and 'highlight-text' not in status_panel.get('class', []):
+                            status_text = status_panel.get_text(separator='\n', strip=True)
+                            if re.search(r'beworben|Sie haben sich am|Bewerbung am|Bewerbungsdatum', status_text, re.IGNORECASE):
+                                application_status = status_text
+                            else:
+                                application_status = None
+                    desc_panel = soup.find('div', class_='panel-body highlight-text')
+                    if desc_panel:
+                        description = desc_panel.get_text(separator='\n', strip=True)
+                    else:
+                        desc = soup.find('div', class_='project-description')
+                        description = desc.text.strip() if desc else ""
+                    project_dict['application_status'] = application_status
+                else:
+                    description = ""
+                    project_dict['application_status'] = None
+                project_dict['description'] = description
             project_dict.pop('_source_page_url', None)
             try:
+                logger.info(f"[DEBUG] Projekt {project_dict.get('project_id')} Beschreibung: {project_dict.get('description')}")
                 final_projects_for_db.append(FreelanceProject(**project_dict))
             except Exception as e:
                 logger.error(f"Fehler beim Erstellen des FreelanceProject-Objekts für {project_dict.get('project_id')}: {e} - Daten: {project_dict}")
-
-
-        # Speichere die finalen Projekte in der Datenbank
         if final_projects_for_db:
             await save_projects_to_db(conn, final_projects_for_db)
         else:
             logger.info("Keine neuen Projekte zum Speichern in der DB nach Detailabruf.")
-
-        # Gib die Liste der Dictionaries zurück (wie zuvor, falls für save_to_json benötigt)
-        # oder optional die Liste der FreelanceProject-Objekte. Für Konsistenz mit save_to_json:
         return [p.model_dump() for p in final_projects_for_db]
     finally:
         await conn.close()
@@ -891,11 +845,12 @@ async def get_user_credentials(user_id: int) -> Optional[dict]:
                 data = response.json()
                 # Die Prüfung auf 'password' wird hier entfernt, da es nicht mehr direkt benötigt/erwartet wird.
                 # Playwright-Login-Service holt es sich oder bekommt es entschlüsselt.
-                if data.get("username") and data.get("link_1"): 
-                    logger.info(f"Basis-Credentials für User {user_id} erfolgreich abgerufen: { {k:v for k,v in data.items() if k != 'password'} }") # Log ohne PW
+                if data.get("username") and data.get("link"): 
+                    safe_data = {key: value for key, value in data.items() if key != 'password'}
+                    logger.info(f"Basis-Credentials für User {user_id} erfolgreich abgerufen: {safe_data}") # Log ohne PW
                     return data
                 else:
-                    logger.error(f"Unvollständige Basis-Credentials für User {user_id} (username oder link_1 fehlt): {data}")
+                    logger.error(f"Unvollständige Basis-Credentials für User {user_id} (username oder link fehlt): {data}")
             else:
                 logger.error(f"Fehler beim Abrufen der Basis-Credentials für User {user_id}: {response.status_code}")
     except Exception as e:
@@ -910,7 +865,7 @@ async def import_single_project_by_url(user_id: int, project_url: str):
         return
     try:
         # Lade die Projektseite
-        html_content = await fetch_page_with_cookies(project_url, user_id)
+        html_content = await fetch_protected_page_via_playwright(project_url, user_id)
         if not html_content:
             logger.error(f"Konnte HTML-Inhalt für {project_url} nicht laden.")
             return

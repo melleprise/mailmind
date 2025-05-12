@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Import benötigter Funktionen
 from freelance.fetch_and_process import (
-    check_cookies, get_cookie_from_playwright_login, fetch_page_with_cookies,
+    check_cookies, get_cookie_from_playwright_login, fetch_protected_page_via_playwright,
     extract_project_data, extract_json_from_html, extract_project_data_from_json,
     BASE_URL
 )
@@ -44,7 +44,7 @@ DB_DETAILS_TABLE = "freelance_project_details"
 async def fetch_project_details_page(project_url: str) -> str:
     """Lädt die Detailseite eines Projekts"""
     logger.info(f"Lade Detailseite: {project_url}")
-    html_content = await fetch_page_with_cookies(project_url)
+    html_content = await fetch_protected_page_via_playwright(project_url)
     
     if html_content:
         # Speichere HTML für Debugging
@@ -422,7 +422,7 @@ async def test_project_and_detail_crawl():
         list_url = f"{BASE_URL}/projekte?pageSize=5"  # Begrenze auf 5 Projekte für den Test
         
         logger.info(f"Lade Projektliste von {list_url}")
-        list_html = await fetch_page_with_cookies(list_url)
+        list_html = await fetch_protected_page_via_playwright(list_url)
         
         if not list_html:
             logger.error("Konnte Projektliste nicht laden.")

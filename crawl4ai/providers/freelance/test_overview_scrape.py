@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Import aus dem freelance-Verzeichnis für die vorhandenen Funktionen
-from freelance.fetch_and_process import BASE_URL, fetch_page_with_cookies
+from freelance.fetch_and_process import BASE_URL, fetch_protected_page_via_playwright
 
 async def extract_project_from_card(project_card: BeautifulSoup) -> Optional[Dict[str, Any]]:
     """Extrahiert ein Projekt aus einer Projektkarte der Übersichtsseite"""
@@ -116,7 +116,7 @@ async def scrape_overview_page() -> List[Dict[str, Any]]:
     url = "https://www.freelance.de/projekte?remotePreference=remote_remote--remote&pageSize=100"
     logger.info(f"Lade Übersichtsseite: {url}")
     
-    html_content = await fetch_page_with_cookies(url)
+    html_content = await fetch_protected_page_via_playwright(url)
     if not html_content:
         logger.error("Fehler beim Laden der Übersichtsseite.")
         return []

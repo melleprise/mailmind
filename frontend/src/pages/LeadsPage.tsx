@@ -48,6 +48,7 @@ interface LeadProject {
   created_at: string;
   description?: string;
   applied?: boolean;
+  application_status?: string;
 }
 
 interface PaginatedLeadResponse {
@@ -106,14 +107,14 @@ const LeadsPage: React.FC = () => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'leads_init' || data.type === 'leads_updated') {
-            setLeads(data.projects.map((p: any, idx: number) => ({ ...p, id: idx + 1 })));
+            setLeads(data.projects.map((p: any, idx: number) => ({ ...p, id: idx + 1, applied: !!p.application_status })));
             setTotalLeads(data.pagination?.total || 0);
             setHasMore((data.pagination?.page || 1) * (data.pagination?.page_size || 20) < (data.pagination?.total || 0));
             setCurrentPage(data.pagination?.page || 1);
             setLoading(false);
             if (data.projects.length > 0 && !selectedLeadId) {
               setSelectedLeadId(data.projects[0].id);
-              setSelectedLead(data.projects[0]);
+              setSelectedLead({ ...data.projects[0], applied: !!data.projects[0].application_status });
             }
           } else if (data.type === 'error') {
             setError(data.detail || 'Unbekannter Fehler');
@@ -377,7 +378,7 @@ const LeadsPage: React.FC = () => {
                     Projekt-ID: {selectedLead.project_id}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                    Bereits beworben: {selectedLead.applied ? 'Ja' : 'Nein'}
+                    Bereits beworben: {selectedLead.application_status ? selectedLead.application_status : 'Nein'}
                   </Typography>
                 </Box>
               </Box>

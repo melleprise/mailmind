@@ -194,12 +194,16 @@ services:
       - "3000:3000"
     volumes:
       - crawl4ai_cookies:/cookies
-      - /tmp/.X11-unix:/tmp/.X11-unix # X11-Forwarding für sichtbaren Browser
-      - ./docker/playwright-login/debug:/app/debug # Mount für alle Debug-Skripte
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      #- ./docker/playwright-login/debug:/app/debug # Mount für alle Debug-Skripte
+      
+      - ./docker/playwright-login:/app
     environment:
       - EMAIL_ACCOUNT_ENCRYPTION_KEY=${EMAIL_ACCOUNT_ENCRYPTION_KEY}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - DISPLAY=${DISPLAY} # X11-Forwarding für sichtbaren Browser
+      - DISPLAY=host.docker.internal:0
+      - VISIBLE_BROWSER=true
+      - DEBUG=1
     env_file:
       - .env.development
     networks:
@@ -207,7 +211,9 @@ services:
     # Hinweis: Auf dem Host muss ausgeführt werden: xhost +local:docker
 
   crawl4ai:
-    image: unclecode/crawl4ai:latest
+    build:
+      context: ./crawl4ai
+      dockerfile: Dockerfile.custom
     container_name: mailmind-dev-crawl4ai
     platform: linux/amd64
     ports:
