@@ -1,5 +1,7 @@
 # Freelance Provider für Crawl4AI
 
+**Hinweis (Mai 2024): Alle Test- und Debug-Dateien wurden in den Ordner `temp/` verschoben. Die Hauptdateien für den Crawl-Prozess sind jetzt klar getrennt.**
+
 Der Freelance-Provider ermöglicht das Crawlen von Projekten auf freelance.de und speichert diese in eine PostgreSQL-Datenbank.
 
 ## Funktionsweise
@@ -23,6 +25,8 @@ Der Provider ist bereits im Crawl4AI Docker-Image enthalten.
 - Playwright-Login-Service
 
 ## Verwendung
+
+Die Test- und Debug-Dateien befinden sich jetzt im Ordner `temp/`. Für den Produktivbetrieb und die eigentlichen Crawl-Prozesse werden nur noch die Hauptdateien im Hauptverzeichnis verwendet.
 
 ### Projekttests
 

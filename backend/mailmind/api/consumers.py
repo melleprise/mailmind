@@ -84,27 +84,30 @@ class SuggestionConsumer(AsyncWebsocketConsumer):
 
 class LeadConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        logger.info(f"LeadConsumer connect attempt. Scope keys: {list(self.scope.keys())}")
-        query_string = self.scope.get('query_string', b'').decode()
-        logger.info(f"LeadConsumer query_string: {query_string}")
-        
-        self.user = self.scope.get("user") # Safely get user
-        
-        logger.info(f"LeadConsumer user from scope: {self.user}")
-        if self.user:
-            logger.info(f"LeadConsumer user.is_authenticated: {self.user.is_authenticated}")
-
-        if not self.user or not self.user.is_authenticated:
-            logger.warning(f"WebSocket connection attempt by unauthenticated user (LeadConsumer). User: {self.user}, Auth: {self.user.is_authenticated if self.user else 'No user'}. Closing connection.")
+        try:
+            logger.info(f"LeadConsumer connect attempt. Scope keys: {list(self.scope.keys())}")
+            query_string = self.scope.get('query_string', b'').decode()
+            logger.info(f"LeadConsumer query_string: {query_string}")
+            self.user = self.scope.get("user") # Safely get user
+            logger.info(f"LeadConsumer user from scope: {self.user}")
+            if self.user:
+                logger.info(f"LeadConsumer user.is_authenticated: {self.user.is_authenticated}")
+            if not self.user or not self.user.is_authenticated:
+                logger.warning(f"WebSocket connection attempt by unauthenticated user (LeadConsumer). User: {self.user}, Auth: {self.user.is_authenticated if self.user else 'No user'}. Closing connection.")
+                await self.close()
+                return
+            self.group_name = "leads_group"
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            await self.accept()
+            logger.info(f"WebSocket connected für user {getattr(self.user, 'id', 'unknown')} (LeadConsumer). Added to group {self.group_name}")
+            try:
+                await self.send_leads_init(page=1, page_size=20)
+            except Exception as e:
+                logger.error(f"Exception in send_leads_init beim Connect: {e}", exc_info=True)
+                await self.send_error('Fehler beim Senden der initialen Projektdaten.')
+        except Exception as e:
+            logger.error(f"Exception in LeadConsumer.connect: {e}", exc_info=True)
             await self.close()
-            return
-        
-        self.group_name = "leads_group" # Alle User in der gleichen Gruppe für Leads
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.accept()
-        logger.info(f"WebSocket connected for user {getattr(self.user, 'id', 'unknown')} (LeadConsumer). Added to group {self.group_name}")
-        # Sende initiale Projektdaten nach Connect
-        await self.send_leads_init(page=1, page_size=20)
 
     async def disconnect(self, close_code):
         if hasattr(self, 'group_name'):
@@ -113,6 +116,9 @@ class LeadConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         try:
+            if not text_data or not text_data.strip():
+                logger.debug("Leere WebSocket-Nachricht empfangen und ignoriert.")
+                return
             data = json.loads(text_data)
             event_type = data.get('type')
             if event_type == 'get_leads':
@@ -133,20 +139,25 @@ class LeadConsumer(AsyncWebsocketConsumer):
     def get_projects(self, page=1, page_size=20, filter_data=None):
         from mailmind.freelance.models import FreelanceProject
         from mailmind.freelance.serializers import FreelanceProjectSerializer
-        queryset = FreelanceProject.objects.all().order_by('-created_at')
-        if filter_data:
-            if 'remote' in filter_data:
-                queryset = queryset.filter(remote=filter_data['remote'])
-            if 'provider' in filter_data:
-                queryset = queryset.filter(provider=filter_data['provider'])
-            if 'skill' in filter_data:
-                queryset = queryset.filter(skills__contains=[filter_data['skill']])
-        total = queryset.count()
-        start = (page - 1) * page_size
-        end = start + page_size
-        projects = queryset[start:end]
-        serializer = FreelanceProjectSerializer(projects, many=True)
-        return serializer.data, total
+        try:
+            queryset = FreelanceProject.objects.all().order_by('-created_at')
+            if filter_data:
+                if 'remote' in filter_data:
+                    queryset = queryset.filter(remote=filter_data['remote'])
+                if 'provider' in filter_data:
+                    queryset = queryset.filter(provider=filter_data['provider'])
+                if 'skill' in filter_data:
+                    queryset = queryset.filter(skills__contains=[filter_data['skill']])
+            total = queryset.count()
+            start = (page - 1) * page_size
+            end = start + page_size
+            projects = queryset[start:end]
+            serializer = FreelanceProjectSerializer(projects, many=True)
+            logger.info(f"get_projects: {projects.count()} Projekte serialisiert (page={page}, page_size={page_size})")
+            return serializer.data, total
+        except Exception as e:
+            logger.error(f"Exception in get_projects: {e}", exc_info=True)
+            return [], 0
 
     @database_sync_to_async
     def get_project_details(self, project_id):
@@ -160,17 +171,22 @@ class LeadConsumer(AsyncWebsocketConsumer):
             return None
 
     async def send_leads_init(self, page=1, page_size=20, filter_data=None):
-        projects, total = await self.get_projects(page, page_size, filter_data)
-        message = {
-            'type': 'leads_init',
-            'projects': projects,
-            'pagination': {
-                'page': page,
-                'page_size': page_size,
-                'total': total
+        try:
+            projects, total = await self.get_projects(page, page_size, filter_data)
+            message = {
+                'type': 'leads_init',
+                'projects': projects,
+                'pagination': {
+                    'page': page,
+                    'page_size': page_size,
+                    'total': total
+                }
             }
-        }
-        await self.send(text_data=json.dumps(message))
+            logger.info(f"send_leads_init: Sende Nachricht an Client: {str(message)[:500]}")
+            await self.send(text_data=json.dumps(message))
+        except Exception as e:
+            logger.error(f"Exception in send_leads_init: {e}", exc_info=True)
+            await self.send_error('Fehler beim Laden der Projektdaten.')
 
     async def send_lead_details(self, project_id):
         details = await self.get_project_details(project_id)

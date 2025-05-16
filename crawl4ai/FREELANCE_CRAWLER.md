@@ -1,5 +1,7 @@
 # Freelance.de Crawler für Crawl4AI
 
+**Hinweis (Mai 2024): Alle Test- und Debug-Dateien wurden in den Ordner `temp/` verschoben. Die Hauptdateien für den Crawl-Prozess sind jetzt klar getrennt.**
+
 Diese Dokumentation beschreibt die Integration des Freelance.de-Crawlers in die Crawl4AI-Plattform.
 
 ## Überblick

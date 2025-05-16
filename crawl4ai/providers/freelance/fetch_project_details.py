@@ -358,9 +358,9 @@ async def fetch_project_details_page(project_id: str, url: str = None) -> Option
                 dumpfile.write(html)
             logger.info(f"[DUMP-DEBUG] Dump erfolgreich geschrieben: {dump_path}")
             return html
-        else:
+            else:
             logger.error(f"Fehler beim Laden der Projektdetailseite für ID {project_id} via Playwright")
-            return None
+                return None
     except Exception as e:
         logger.error(f"Fehler beim Laden der Projektdetailseite für ID {project_id}: {e}")
         return None

@@ -1,5 +1,7 @@
 # Funktionenübersicht Freelance-Crawler
 
+**Hinweis (Mai 2024): Alle Test- und Debug-Dateien wurden in den Ordner `temp/` verschoben. Die Hauptdateien für den Crawl-Prozess sind jetzt klar getrennt.**
+
 Diese Datei dokumentiert alle Funktionen des Freelance-Testcrawlers (Stand: automatisch generiert).
 
 ## test_crawler.py

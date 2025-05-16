@@ -1,5 +1,7 @@
 # Crawl4AI Integration
 
+**Hinweis (Mai 2024): Alle Test- und Debug-Dateien des Freelance-Crawlers wurden in den Ordner `temp/` verschoben. Die Hauptdateien für den Crawl-Prozess sind jetzt klar getrennt.**
+
 ## Ziel
 - Crawl4AI als Service im Docker-Setup.
 - Nutzung der bestehenden Postgres-DB für persistente Speicherung.
@@ -65,7 +67,7 @@ Crawl4AI benötigt für den `freelance.de`-Provider nicht direkt einen API-Key i
 
 ## Siehe auch
 - [Crawl4AI Docker Guide](https://docs.crawl4ai.com/core/docker-deployment/)
-- [Crawl4AI Konfiguration](https://docs.crawl4ai.com/core/installation/)
+- [Crawl4AI Konfiguration](https://docs.crawl4ai.com/core/installation/) 
 
 ## Custom Endpunkte
 

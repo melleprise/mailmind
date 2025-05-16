@@ -23,6 +23,7 @@ class FreelanceProject(models.Model):
     provider = models.TextField(null=False, blank=False)
     created_at = models.DateTimeField(auto_now_add=True)
     application_status = models.TextField(null=True, blank=True)
+    project_badge = models.TextField(null=True, blank=True)
     
     class Meta:
         db_table = 'freelance_projects'

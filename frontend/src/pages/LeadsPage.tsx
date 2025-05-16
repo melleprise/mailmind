@@ -94,6 +94,13 @@ const LeadsPage: React.FC = () => {
     let ws: WebSocket;
     let reconnectTries = 0;
     function connectWS() {
+      console.log('[WebSocket] Starte connectWS()');
+      // Vorherige Verbindung schließen, falls vorhanden!
+      if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+        console.log('[WebSocket] Schließe alte Verbindung vor neuem Connect');
+        wsRef.current.onclose = null; // Verhindert doppeltes Reconnect
+        wsRef.current.close();
+      }
       const wsUrlWithToken = WS_URL + '?token=' + encodeURIComponent(token!);
       ws = new window.WebSocket(wsUrlWithToken);
       wsRef.current = ws;
@@ -101,7 +108,7 @@ const LeadsPage: React.FC = () => {
       ws.onopen = () => {
         reconnectTries = 0;
         setError(null);
-        // Kein automatischer get_leads-Request mehr
+        console.log('[WebSocket] Verbindung geöffnet');
       };
       ws.onmessage = (event) => {
         try {
@@ -120,7 +127,6 @@ const LeadsPage: React.FC = () => {
             setError(data.detail || 'Unbekannter Fehler');
             setLoading(false);
           } else if (data.type === 'lead_details') {
-            // Optional: Details-Handling
             setSelectedLead(data.details);
           }
         } catch (e) {
@@ -131,9 +137,11 @@ const LeadsPage: React.FC = () => {
       ws.onerror = () => {
         setError('WebSocket-Fehler');
         setLoading(false);
+        console.warn('[WebSocket] Fehler aufgetreten');
       };
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         setLoading(false);
+        console.warn('[WebSocket] Verbindung geschlossen:', event);
         if (reconnectTries < 5) {
           reconnectTries++;
           reconnectTimeout.current = setTimeout(connectWS, 1000 * reconnectTries);
@@ -142,9 +150,14 @@ const LeadsPage: React.FC = () => {
         }
       };
     }
+    console.log('[WebSocket] useEffect ausgeführt, token:', token);
     connectWS();
     return () => {
-      if (wsRef.current) wsRef.current.close();
+      console.log('[WebSocket] Cleanup: Verbindung wird geschlossen');
+      if (wsRef.current) {
+        wsRef.current.onclose = null;
+        wsRef.current.close();
+      }
       if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
     };
   }, [token]);

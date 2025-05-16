@@ -7,10 +7,11 @@ class FreelanceProjectSerializer(serializers.ModelSerializer):
     
     description = serializers.CharField(default="")
     application_status = serializers.CharField(allow_null=True, required=False)
+    project_badge = serializers.CharField(allow_null=True, required=False)
     
     class Meta:
         model = FreelanceProject
-        fields = ['id', 'project_id', 'title', 'company', 'end_date', 'location', 'remote', 'last_updated', 'skills', 'url', 'applications', 'description', 'provider', 'created_at', 'application_status']
+        fields = ['id', 'project_id', 'title', 'company', 'end_date', 'location', 'remote', 'last_updated', 'skills', 'url', 'applications', 'description', 'provider', 'created_at', 'application_status', 'project_badge']
 
 class FreelanceProviderCredentialSerializer(serializers.ModelSerializer):
     """Serializer für FreelanceProviderCredential model."""

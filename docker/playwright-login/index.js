@@ -194,9 +194,9 @@ async function loginFreelanceDe(username, password, loginUrl, overviewUrl, detai
         await page.goto('https://www.freelance.de/myfreelance/index.php');
         console.log('[PlaywrightLogin] Promo-Fenster: Direkt auf https://www.freelance.de/myfreelance/index.php navigiert!');
       }
-    } catch (e) {
+      } catch (e) {
       console.log('[PlaywrightLogin] Promo-Fenster: Nicht gefunden oder Fehler:', e.message);
-    }
+      }
     // === Warte bis Dialog verschwindet ===
     await page.waitForSelector('#CybotCookiebotDialog', { state: 'detached', timeout: 10000 }).catch(() => {});
     // === Speichere alle Cookies, LocalStorage und SessionStorage ===

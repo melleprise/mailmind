@@ -15,9 +15,9 @@ export const AIAgentInput: React.FC<DummyActionInputProps> = ({ isExpanded, onEx
 
     // Initialize state directly from localStorage
     const [dummyText, setDummyText] = useState(() => {
-        console.log(`[DummyActionInput] Initializing state. Key: ${localStorageKey}`);
+        // console.log(`[DummyActionInput] Initializing state. Key: ${localStorageKey}`);
         const savedText = localStorage.getItem(localStorageKey);
-        console.log(`[DummyActionInput] Initial load from localStorage: '${savedText}'`);
+        // console.log(`[DummyActionInput] Initial load from localStorage: '${savedText}'`);
         return savedText !== null ? savedText : "";
     });
 
@@ -27,9 +27,9 @@ export const AIAgentInput: React.FC<DummyActionInputProps> = ({ isExpanded, onEx
     // Effect to re-initialize state if localStorageKey changes (e.g., email selection changes)
     useEffect(() => {
         if (localStorageKey !== previousKeyRef.current) {
-            console.log(`[DummyActionInput] localStorageKey changed from ${previousKeyRef.current} to ${localStorageKey}. Re-initializing state.`);
+            // console.log(`[DummyActionInput] localStorageKey changed from ${previousKeyRef.current} to ${localStorageKey}. Re-initializing state.`);
             const savedText = localStorage.getItem(localStorageKey);
-            console.log(`[DummyActionInput] Re-load from localStorage: '${savedText}'`);
+            // console.log(`[DummyActionInput] Re-load from localStorage: '${savedText}'`);
             setDummyText(savedText !== null ? savedText : "");
             previousKeyRef.current = localStorageKey;
         }
@@ -37,12 +37,12 @@ export const AIAgentInput: React.FC<DummyActionInputProps> = ({ isExpanded, onEx
 
     // Effect for SAVING to localStorage (runs when dummyText or localStorageKey changes)
     useEffect(() => {
-        console.log(`[DummyActionInput] SAVE EFFECT. Key: ${localStorageKey}, Value: '${dummyText}'`);
+        // console.log(`[DummyActionInput] SAVE EFFECT. Key: ${localStorageKey}, Value: '${dummyText}'`);
         localStorage.setItem(localStorageKey, dummyText);
     }, [dummyText, localStorageKey]);
 
     const handleDummyChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        console.log("[DummyActionInput] handleDummyChange. New value:", event.target.value);
+        // console.log("[DummyActionInput] handleDummyChange. New value:", event.target.value);
         setDummyText(event.target.value);
     };
 
@@ -60,7 +60,7 @@ export const AIAgentInput: React.FC<DummyActionInputProps> = ({ isExpanded, onEx
         }
     };
 
-    console.log(`[DummyActionInput] Rendering with dummyText: '${dummyText}'`); // Log current render value
+    // console.log(`[DummyActionInput] Rendering with dummyText: '${dummyText}'`); // Log current render value
 
     return (
         <Box

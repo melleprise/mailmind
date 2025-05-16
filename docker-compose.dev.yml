@@ -201,9 +201,9 @@ services:
     environment:
       - EMAIL_ACCOUNT_ENCRYPTION_KEY=${EMAIL_ACCOUNT_ENCRYPTION_KEY}
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
-      - DISPLAY=host.docker.internal:0
-      - VISIBLE_BROWSER=true
-      - DEBUG=1
+      - VISIBLE_BROWSER=false
+      #- DISPLAY=host.docker.internal:0
+      #- DEBUG=1
     env_file:
       - .env.development
     networks:

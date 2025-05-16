@@ -10,22 +10,25 @@ import { HelmetProvider } from 'react-helmet-async';
 import i18n from './i18n'; // Import i18next configuration AND the instance
 import { I18nextProvider } from 'react-i18next'; // Import the provider
 import { queryClient } from './lib/queryClient'; // Import from the new file
+import { SnackbarProvider } from 'notistack';
+import { CssBaseline } from '@mui/material';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <HelmetProvider>
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AppThemeProvider>
+  <HelmetProvider>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <AppThemeProvider>
+          <SnackbarProvider maxSnack={3} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+            <CssBaseline />
             <AuthProvider>
-              <I18nextProvider i18n={i18n}> {/* Wrap App with the provider */}
+              <I18nextProvider i18n={i18n}>
                 <App />
               </I18nextProvider>
             </AuthProvider>
-          </AppThemeProvider>
-        </BrowserRouter>
-        <ReactQueryDevtools initialIsOpen={false} />
-      </QueryClientProvider>
-    </HelmetProvider>
-  </React.StrictMode>
+          </SnackbarProvider>
+        </AppThemeProvider>
+      </BrowserRouter>
+      <ReactQueryDevtools initialIsOpen={false} position="bottom-left" />
+    </QueryClientProvider>
+  </HelmetProvider>
 ); 
