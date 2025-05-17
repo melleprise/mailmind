@@ -408,14 +408,35 @@ def save_email_content_from_dict(content_dict: dict, account: EmailAccount):
             # Process attachments (using the existing function)
             if attachments_list:
                 _process_attachments_from_dict(attachments_list, email_instance)
-            # --- Trigger Markdown Generation Task ---
-            # Trigger if HTML body is present (either newly created or updated)
-            if 'body_html' in db_data and db_data['body_html'] is not None:
-                try:
-                    async_task('mailmind.imap.tasks.generate_markdown_for_email_task', email_instance.id)
-                    logger.info(f"Queued markdown generation task for email {email_instance.id} ({'created' if created else 'updated'})")
-                except Exception as q_err:
-                    logger.error(f"Failed to queue markdown generation task for email {email_instance.id}: {q_err}", exc_info=True)
+        # --- Markdown-Task jetzt außerhalb der Transaktion triggern ---
+        if 'body_html' in db_data and db_data['body_html'] is not None:
+            try:
+                logger.info(f"Triggering markdown generation for email {email_instance.id}: body_html present (len={len(db_data['body_html']) if db_data['body_html'] else 0}) [AFTER TRANSACTION]")
+                async_task('mailmind.imap.tasks.generate_markdown_for_email_task', email_instance.id)
+                logger.info(f"Queued markdown generation task for email {email_instance.id} ({'created' if created else 'updated'}) [AFTER TRANSACTION]")
+            except Exception as q_err:
+                logger.error(f"Failed to queue markdown generation task for email {email_instance.id}: {q_err}", exc_info=True)
+        else:
+            logger.info(f"No body_html for email {email_instance.id} (UID: {uid}, folder: {folder_name}). Markdown generation not triggered. body_html in db_data: {'body_html' in db_data}, value: {db_data.get('body_html')}")
+        # --- WebSocket-Broadcast für neue E-Mails ---
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            from mailmind.core.serializers import EmailDetailSerializer
+            user_id = email_instance.account.user.id
+            channel_layer = get_channel_layer()
+            group_name = f'user_{user_id}_events'
+            serializer = EmailDetailSerializer(email_instance)
+            email_data = serializer.data
+            logger.info(f"[store.py] Versuche WebSocket-Broadcast: user_id={user_id}, group={group_name}, email_id={email_instance.id}, data_keys={list(email_data.keys())}")
+            message = {
+                'type': 'email.new',
+                'email_data': email_data
+            }
+            async_to_sync(channel_layer.group_send)(group_name, message)
+            logger.info(f"[store.py] WebSocket-Broadcast: Neue E-Mail {email_instance.id} an Gruppe {group_name} gesendet.")
+        except Exception as ws_err:
+            logger.error(f"[store.py] WebSocket-Broadcast für neue E-Mail {email_instance.id} fehlgeschlagen: {ws_err}", exc_info=True)
         # End of the with transaction.atomic() block
 
     except Email.MultipleObjectsReturned:

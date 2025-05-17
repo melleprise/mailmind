@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+export PYTHONWARNINGS="ignore:Retry and timeout are misconfigured:UserWarning"
+
 # Warte auf PostgreSQL
 until PGPASSWORD=$POSTGRES_PASSWORD psql -h "$POSTGRES_HOST" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c '\q'; do
   >&2 echo "Postgres is unavailable - sleeping"
@@ -18,4 +20,4 @@ done
 >&2 echo "Starting QCluster..."
 
 # Starte den QCluster
-exec python manage.py qcluster 
+exec python -W "ignore:Retry and timeout are misconfigured:UserWarning" manage.py qcluster 

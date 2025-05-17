@@ -32,6 +32,7 @@ from asgiref.sync import async_to_sync
 from django.db.models import Q
 from django.db import transaction # Import transaction
 from mailmind.ai.refinement_service import refine_text_content_sync # Import new service
+from apps.users.tasks import run_initial_sync_for_account_v2
 
 logger = logging.getLogger(__name__)
 
@@ -521,7 +522,9 @@ class EmailAccountViewSet(viewsets.ModelViewSet):
         logger.info(f"Connection test passed. Saving account {email_address_for_log}.")
         print("--- DEBUG: Before serializer.save() ---")
         account = serializer.save(user=self.request.user)
-        print(f"--- DEBUG: After serializer.save(), Account ID: {account.id} ---")
+        logger.info(f"[DEBUG] Nach serializer.save(): Account-ID: {account.id}, User-ID: {account.user_id}, User-Email: {self.request.user.email}")
+        user_email = self.request.user.email
+        user_id = self.request.user.id
 
         # --- Passwort verschlüsseln und speichern ---
         password_set_successfully = False
@@ -531,30 +534,19 @@ class EmailAccountViewSet(viewsets.ModelViewSet):
                 account.set_password(password) # Modellmethode verwenden
                 account.save(update_fields=['password']) # Nur Passwortfeld speichern
                 password_set_successfully = True # Flag setzen bei Erfolg
-                logger.info(f"Password successfully set and saved for account {account.id}. Encrypted value starts with: {account.password[:10]}...")
-                print(f"--- DEBUG: Password save successful for account {account.id} ---")
+                logger.info(f"[DEBUG] Password successfully set for account {account.id}")
             except Exception as e:
-                logger.error(f"CRITICAL: Failed to set/encrypt password for newly created account {account.id}. Account exists but password is not set correctly. Error: {e}", exc_info=True)
-                print(f"--- DEBUG: EXCEPTION during password set/save for account {account.id} ---")
-                # Fortfahren, aber Flag bleibt False
-
-        # --- Trigger Initial Sync Task AFTER COMMIT ---
-        # Nur starten, wenn das Passwort erfolgreich gesetzt wurde (oder keins nötig war)
-        # Verwende transaction.on_commit, um sicherzustellen, dass das Speichern abgeschlossen ist
+                logger.error(f"[DEBUG] Failed to set/encrypt password for account {account.id}: {e}", exc_info=True)
+        logger.info(f"[DEBUG] password_set_successfully={password_set_successfully}, password={'***' if password else None}")
         if password_set_successfully or not password:
-            account_id = account.id # ID vor dem Lambda-Capture speichern
-            print(f"--- DEBUG: Preparing to queue async_task ON COMMIT for account {account_id} ---")
+            logger.info(f"[DEBUG] Starte initial_sync_task_v2 direkt nach Account-Save für Account {account.id}")
             try:
-                # Dieses Lambda wird erst nach erfolgreichem Commit der aktuellen Transaktion ausgeführt
-                transaction.on_commit(lambda: async_task('mailmind.imap.sync.sync_account', account_id))
-                print(f"--- DEBUG: on_commit hook registered for account {account_id} ---")
-                logger.info(f"Initial sync task for account ID {account_id} registered to run on commit.")
+                async_task('apps.users.tasks.run_initial_sync_for_account_v2', account.id, user_email, user_id)
+                logger.info(f"Initial sync v2 task für Account {account.id} wurde direkt gestartet.")
             except Exception as e:
-                # Fehler beim Registrieren des Hooks (unwahrscheinlich, aber sicherheitshalber)
-                print(f"!!! DEBUG: EXCEPTION during transaction.on_commit registration for account {account_id}: {e} !!!")
-                logger.error(f"Failed to register on_commit sync task for account ID {account_id}: {e}", exc_info=True)
+                logger.error(f"[DEBUG] Fehler beim Starten des initial_sync v2 Tasks für Account {account.id}: {e}", exc_info=True)
         else:
-             logger.warning(f"Skipping initial sync task trigger for account {account.id} because password setting failed.")
+            logger.warning(f"[DEBUG] Skipping initial sync task trigger for account {account.id} because password setting failed.")
 
         logger.info(f"Email account {account.email} (ID: {account.id}) creation process finished in perform_create.")
         print(f"--- DEBUG: Exiting perform_create for account {account.id} ---")
@@ -626,21 +618,20 @@ class EmailAccountViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def sync(self, request, pk=None):
-        """Manuelle E-Mail-Synchronisation starten."""
-        logger.info(f"--- SYNC ACTION CALLED for account ID: {pk} ---") # NEUES LOG AM ANFANG
+        """Startet den Initial-Sync-Task für EINEN Account asynchron (wie initial_sync Management Command)."""
         account = self.get_object()
+        logger.info(f"[SYNC-DEBUG] (api) Initial-Sync: Account-ID: {account.id}, Account-Email: {account.email}, User-ID: {account.user_id}, User-Email: {account.user.email}")
+        from django_q.tasks import async_task
         try:
-            # Asynchrone Synchronisation starten
-            async_task('mailmind.imap.sync.sync_account', account.id)
-            logger.info(f"Successfully queued manual sync task for account ID: {pk}") # LOG BEI ERFOLG
-            return Response({'status': 'sync_started'})
+            task_id = async_task('apps.users.tasks.run_initial_sync_for_account_v2', account.id, account.user.email, account.user_id)
+            logger.info(f"[SYNC-DEBUG] (api) async_task Rückgabe: {task_id}")
+            if not task_id:
+                logger.error(f"[SYNC-DEBUG] (api) async_task hat KEINE Task-ID zurückgegeben! Task wurde NICHT gequeued.")
+            else:
+                logger.info(f"[SYNC-DEBUG] (api) Task-ID: {task_id} für Account-ID: {account.id}, Account-Email: {account.email}")
         except Exception as e:
-            # Hier wird der Fehler geloggt und an das Frontend zurückgegeben
-            logger.error(f"Failed to queue manual sync task for account ID {pk}: {e}", exc_info=True) # Logging hinzugefügt
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"[SYNC-DEBUG] (api) Fehler beim Queuen des Tasks: {e}", exc_info=True)
+        return Response({'status': 'initial_sync_task_queued'})
 
     def destroy(self, request, *args, **kwargs):
         """Löscht ein E-Mail-Konto und bereinigt zugehörige Tasks und Vektordaten."""

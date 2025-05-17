@@ -167,3 +167,29 @@ docker compose -f docker-compose.dev.yml exec backend python manage.py migrate
 
 docker-compose -f docker-compose.dev.yml exec worker python test_embedding.py
 
+## Typische Fehler: Python/Django
+
+### SyntaxError: unexpected character after line continuation character bei Docstrings
+
+**Problem:**
+
+    def foo():
+        \"\"\"
+        Mein Docstring
+        \"\"\"
+
+**Falsch:** Backslash vor den Anführungszeichen (\"\"\").
+
+**Richtig:**
+
+    def foo():
+        """
+        Mein Docstring
+        """
+
+**Lösung:**
+Immer nur doppelte Anführungszeichen (""") für Docstrings verwenden, niemals mit Backslash (\"\"").
+
+**Konsequenz:**
+Dieser Fehler führt zu einem SyntaxError und blockiert den gesamten Django-Start.
+

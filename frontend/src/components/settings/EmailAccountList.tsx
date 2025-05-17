@@ -91,14 +91,14 @@ const EmailAccountList: React.FC<EmailAccountListProps> = ({
                    <CircularProgress size={24} sx={{ mr: 1 }} />
                 </Tooltip>
               ) : (
-                <Tooltip title="Sync Status (Idle/Synced/Error)">
-                   {/* Wrap IconButton in a span */}
+                <Tooltip title="Jetzt synchronisieren">
                    <span>
                      <IconButton
                        edge="end"
                        aria-label="sync-status"
                        sx={{ mr: 1 }}
-                       style={{ pointerEvents: 'none' }} // Verhindert Klick-Events sicherheitshalber
+                       onClick={() => onSync(account.id)}
+                       disabled={!!syncingAccountId}
                      >
                         <SyncIcon />
                      </IconButton>

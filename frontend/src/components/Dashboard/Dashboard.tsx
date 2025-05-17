@@ -79,9 +79,12 @@ export const Dashboard: React.FC = () => {
           const message = JSON.parse(event.data);
           console.log('[Dashboard IMAP WS Message]', message);
 
-          if (message.type === 'email.new' && message.email) {
-             console.log('[Dashboard IMAP WS Handler] Received new email notification:', message.email);
-             alert('New email received (check console for details)');
+          if (message.type === 'email.new' && message.payload) {
+             console.log('[Dashboard IMAP WS Handler] Received new email notification:', message.payload);
+             setSearchResults(prev => {
+               if (prev.some(e => e.id === message.payload.id)) return prev;
+               return [message.payload, ...prev];
+             });
           } else if (message.type === 'status' && message.status) {
              console.log(`[Dashboard IMAP WS Handler] Received status update: ${message.status}`, message.message || '');
           }
@@ -126,6 +129,60 @@ export const Dashboard: React.FC = () => {
       }
     };
   }, [token, accountId, selectedEmail]);
+
+  // --- WebSocket für allgemeine User-Events (email.new) ---
+  useEffect(() => {
+    if (!token) return;
+    const wsBaseUrl = import.meta.env.VITE_WS_BASE_URL || 'ws://localhost:8000';
+    const wsUrl = `${wsBaseUrl}/ws/general/?token=${encodeURIComponent(token)}`;
+    console.log('[Dashboard GENERAL WS] Attempting connection to:', wsUrl);
+    let ws: WebSocket | null = null;
+    let reconnectTimeout: NodeJS.Timeout | null = null;
+
+    const connect = () => {
+      ws = new WebSocket(wsUrl);
+      ws.onopen = () => {
+        console.log('[Dashboard GENERAL WS] WebSocket connected.', wsUrl);
+        if (reconnectTimeout) {
+          clearTimeout(reconnectTimeout);
+          reconnectTimeout = null;
+        }
+      };
+      ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          console.log('[Dashboard GENERAL WS] Message received:', message);
+          if (message.type === 'email.new' && message.payload) {
+            setSearchResults(prev => {
+              if (prev.some(e => e.id === message.payload.id)) {
+                console.log('[Dashboard GENERAL WS] Email already exists in list, skipping:', message.payload.id);
+                return prev;
+              }
+              console.log('[Dashboard GENERAL WS] Adding new email to list:', message.payload.id);
+              return [message.payload, ...prev];
+            });
+          }
+        } catch (err) {
+          console.error('[Dashboard GENERAL WS] Error parsing message:', err, event.data);
+        }
+      };
+      ws.onerror = (err) => {
+        console.error('[Dashboard GENERAL WS] WebSocket error:', err);
+      };
+      ws.onclose = (event) => {
+        console.log(`[Dashboard GENERAL WS] WebSocket closed. Code: ${event.code}, Reason: ${event.reason}, Clean: ${event.wasClean}`);
+        ws = null;
+        if (event.code !== 1000 && !reconnectTimeout) {
+          reconnectTimeout = setTimeout(connect, 5000);
+        }
+      };
+    };
+    connect();
+    return () => {
+      if (reconnectTimeout) clearTimeout(reconnectTimeout);
+      if (ws) ws.close(1000, 'Component unmounting');
+    };
+  }, [token]);
 
   const handleSelectEmail = (email: Email | null) => {
     // ... (existing code)

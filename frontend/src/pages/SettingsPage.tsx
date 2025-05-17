@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Box, Typography, Container, Grid, Paper, CircularProgress, Alert } from '@mui/material';
 import EmailAccountForm from '../components/settings/EmailAccountForm';
 import EmailAccountList from '../components/settings/EmailAccountList';
@@ -139,37 +139,29 @@ const SettingsPage: React.FC = () => {
     loadAccounts();
   }, []);
 
-  // Effect to handle incoming WebSocket messages for sync status
+  const wsRef = useRef<WebSocket | null>(null);
+
   useEffect(() => {
-    // Mock processing for now, replace with actual WebSocket logic
-    /* COMMENTED OUT WebSocket logic
-    if (lastJsonMessage) {
-      const message = lastJsonMessage as any; // Type assertion, adjust as needed
-      if (message.type === 'sync_status') {
-        const { accountId, status, message: notificationMessage } = message.payload;
-        console.log('Received sync_status:', message.payload);
-        
-        // If the completed/failed sync matches the one triggered by UI, stop spinner
-        if (accountId === syncingAccountId) {
-           setSyncingAccountId(null);
+    // WebSocket initialisieren
+    const token = localStorage.getItem('authToken');
+    if (!token) return;
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/notifications/?token=${token}`;
+    wsRef.current = new WebSocket(wsUrl);
+    wsRef.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'sync_status') {
+          const { accountId, status, message: notificationMessage } = data.payload;
+          if (accountId === syncingAccountId) setSyncingAccountId(null);
+          if (status === 'completed') enqueueSnackbar(notificationMessage || `Account ${accountId} synced successfully.`, { variant: 'success' });
+          else if (status === 'failed') enqueueSnackbar(notificationMessage || `Account ${accountId} sync failed.`, { variant: 'error' });
         }
-
-        // Show notification regardless of whether it was UI-triggered
-        if (status === 'completed') {
-           enqueueSnackbar(notificationMessage || `Account ${accountId} synced successfully.`, { variant: 'success' });
-        } else if (status === 'failed') {
-           enqueueSnackbar(notificationMessage || `Account ${accountId} sync failed.`, { variant: 'error' });
-        }
-        
-        // Optional: Update account list or specific account status if needed
-        // loadAccounts(); // Could reload all accounts, maybe too heavy
-      }
-    }
-    */
-    // Placeholder to avoid unused variable warnings if lastJsonMessage was used
-    // console.log("WebSocket message check placeholder"); 
-
-  }, [syncingAccountId, enqueueSnackbar]); // Removed lastJsonMessage from dependencies
+      } catch (e) { /* ignore */ }
+    };
+    wsRef.current.onerror = () => { wsRef.current?.close(); };
+    wsRef.current.onclose = () => { wsRef.current = null; };
+    return () => { wsRef.current?.close(); };
+  }, [syncingAccountId, enqueueSnackbar]);
 
   const handleAccountAdded = () => {
     loadAccounts();
@@ -205,12 +197,17 @@ const SettingsPage: React.FC = () => {
     setSyncingAccountId(id);
     setErrorAccounts(null);
     try {
-      const response = await emailAccounts.triggerSync(id);
+      const response = await emailAccounts.sync(id);
       console.log(`Sync task triggered for account ${id}:`, response.data);
-      enqueueSnackbar(response.data?.detail || 'Sync task started successfully!', { variant: 'info' });
+      enqueueSnackbar(response.data?.detail || response.data?.status || 'Sync task started successfully!', { variant: 'info' });
     } catch (err: any) {
-      const errorData = err.response?.data;
-      const errorMessage = errorData?.detail || errorData?.message || `Failed to start sync task for account ${id}.`;
+      let errorMessage = 'Failed to start sync task for account ' + id + '.';
+      if (err.response?.data) {
+        // Backend liefert oft 'error' oder 'detail'
+        errorMessage = err.response.data.error || err.response.data.detail || errorMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
       setErrorAccounts(errorMessage);
       enqueueSnackbar(errorMessage, { variant: 'error' });
       setSyncingAccountId(null);

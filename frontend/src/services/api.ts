@@ -1097,9 +1097,9 @@ export const freelanceCredentials = {
   // Prüfe, ob Credentials existieren
   exists: async (): Promise<boolean> => {
     try {
-      console.log('[api.ts] Prüfe, ob Freelance-Provider-Credentials existieren');
+      // console.log('[api.ts] Prüfe, ob Freelance-Provider-Credentials existieren');
       await apiClient.get('/freelance/credentials/');
-      console.log('[api.ts] Freelance-Provider-Credentials existieren');
+      // console.log('[api.ts] Freelance-Provider-Credentials existieren');
       return true;
     } catch (error: any) {
       if (error.response && error.response.status === 404) {

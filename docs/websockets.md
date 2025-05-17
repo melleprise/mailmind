@@ -42,4 +42,24 @@
 - Für lokale Entwicklung immer `localhost` im Browser verwenden, nicht den Docker-Service-Namen.
 - Für Container-zu-Container-Kommunikation im Compose-Netzwerk immer den Service-Namen (z.B. `backend`) verwenden.
 - Die Umgebungsvariable `VITE_WS_BASE_URL` ist der empfohlene Weg für flexible Deployments.
+
+## 6. E-Mail-Benachrichtigung nach Import (Initial & IDLE)
+
+- Nach jedem erfolgreichen Speichern einer neuen E-Mail (egal ob durch initialen Import, IDLE oder Einzelabruf) sendet das Backend automatisch ein WebSocket-Event an die Gruppe `user_{user_id}_events`.
+- Das Event hat den Typ `email.new` und enthält als Payload die vollständigen E-Mail-Daten (wie in der API, serialisiert mit `EmailDetailSerializer`).
+- Das Frontend kann so in Echtzeit neue E-Mails anzeigen, ohne Polling.
+- Fehler beim Senden des Events werden geloggt, blockieren aber nicht den Import.
+- Beispiel-Payload:
+  ```json
+  {
+    "type": "email.new",
+    "payload": {
+      "id": 123,
+      "subject": "...",
+      "body_html": "...",
+      "markdown_body": "...",
+      ...
+    }
+  }
+  ```
  

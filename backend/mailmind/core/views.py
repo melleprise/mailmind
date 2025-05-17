@@ -533,12 +533,9 @@ class EmailAccountViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['post'])
     def sync(self, request, pk=None):
-        """Triggers an asynchronous sync for the email account."""
-        account = self.get_object() # Ensures the user owns the account
-        # TODO: Implement the actual async task queuing for sync
-        logger.info(f"Sync requested for account {account.id} (user: {request.user.id})")
-        # async_task('mailmind.email_sync.tasks.sync_account', account.id)
-        return Response({"status": "Sync task queued (placeholder)."}, status=status.HTTP_202_ACCEPTED)
+        """Leitet den Sync-Call an die neue Logik in mailmind.api.views weiter."""
+        from mailmind.api.views import EmailAccountViewSet as NewEmailAccountViewSet
+        return NewEmailAccountViewSet.sync(self, request, pk)
 
 # ViewSet for APICredential model
 class APICredentialViewSet(mixins.CreateModelMixin,

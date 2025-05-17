@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__) # Get logger
 class EmailConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope.get('user') # Use .get() to be safe
+        logger.info(f"[EmailConsumer] connect() aufgerufen. User in scope: {self.user}")
         
         # --- Re-enable authentication check ---
         if not self.user:
@@ -38,6 +39,7 @@ class EmailConsumer(AsyncWebsocketConsumer):
         logger.info(f"WebSocket connected for {user_info}, joined group {self.group_name}")
 
     async def disconnect(self, close_code):
+        logger.info(f"[EmailConsumer] disconnect() aufgerufen. Code: {close_code}, User: {getattr(self, 'user', None)}")
         # Use logger for disconnect message
         if hasattr(self, 'group_name') and self.user and self.user.is_authenticated: # Check if user exists and authenticated
             logger.info(f"WebSocket disconnected for user {self.user.id} ('{self.user.email}'). Close code: {close_code}. Left group {self.group_name}")
@@ -55,12 +57,16 @@ class EmailConsumer(AsyncWebsocketConsumer):
     # Handler für "email.new" Nachrichten von der Gruppe
     async def email_new(self, event):
         email_data = event['email_data']
-        logger.debug(f"Sending email_new event to user {self.user.id}: {email_data.get('id', 'N/A')}")
+        logger.info(f"[EmailConsumer] email_new-Event empfangen für user {self.user.id}: Email-ID {email_data.get('id', 'N/A')}")
         # Sende Nachricht an WebSocket
-        await self.send(text_data=json.dumps({
-            'type': 'email.new',
-            'payload': email_data
-        }))
+        try:
+            await self.send(text_data=json.dumps({
+                'type': 'email.new',
+                'payload': email_data
+            }))
+            logger.info(f"[EmailConsumer] email_new erfolgreich an Client gesendet (Email-ID: {email_data.get('id', 'N/A')})")
+        except Exception as e:
+            logger.error(f"[EmailConsumer] Fehler beim Senden von email_new an Client: {e}", exc_info=True)
 
     # Handler für "email.update" Nachrichten von der Gruppe
     async def email_updated(self, event):

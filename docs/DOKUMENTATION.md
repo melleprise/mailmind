@@ -140,6 +140,14 @@ async_task('mailmind.imap.tasks.process_folder_metadata_task', account_id, targe
     *   `400 Bad Request`: Konto nicht korrekt konfiguriert (z.B. kein Passwort/Token).
     *   `500 Internal Server Error`: Allgemeiner Fehler beim Abrufen der Ordner.
 
+### Initial Sync Task (API)
+
+- Der Task `run_initial_sync_for_account` erwartet jetzt explizit die User-E-Mail (nicht mehr die Account-E-Mail) als zweiten Parameter.
+- Die API-Route `/core/email-accounts/<int:pk>/sync/` übergibt daher `account.user.email` an den Task.
+- Hintergrund: Das Management Command `initial_sync` sucht nach der User-E-Mail, nicht nach der Account-E-Mail. Nur so funktioniert der Sync korrekt für den gewünschten Account.
+- Fehlerfall: Wird die Account-E-Mail übergeben, schlägt der Sync mit "User with specified identifier not found." fehl.
+
+Letzte Änderung: Anpassung am 16.05.2025 (Bugfix E-Mail-Übergabe)
 
 ## Frontend Komponenten
 

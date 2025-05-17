@@ -7,6 +7,7 @@ It exposes the ASGI callable as a module-level variable named `application`.
 import os
 import sys
 from pathlib import Path
+import warnings
 
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
@@ -31,6 +32,8 @@ django_asgi_app = get_asgi_application()
 # NOW import routing AFTER Django apps are ready
 import mailmind.api.routing
 from mailmind.middleware import TokenAuthMiddleware # Import hierher verschoben und einkommentiert
+
+warnings.filterwarnings("ignore", message=r".*Retry and timeout are misconfigured.*", category=UserWarning)
 
 application = ProtocolTypeRouter(
     {

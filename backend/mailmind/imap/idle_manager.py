@@ -234,7 +234,7 @@ async def run_idle_for_account(account_id: int, decrypted_password: Optional[str
                         imap_client = None
                         raise aioimaplib.Abort("Connection error during IDLE DONE")
                     except Exception as e_done:
-                        logger.error(f"[IDLE Task {account_id}] Unexpected error sending DONE: {e_done}", exc_info=True)
+                        logger.info(f"[IDLE Task {account_id}] IDLE responses konnten nicht verarbeitet werden (Timeout/Cancel): {e_done}. Proceeding with UID check anyway.")
                         if imap_client: 
                             try:
                                 await asyncio.wait_for(imap_client.close(), timeout=5)
@@ -270,7 +270,7 @@ async def run_idle_for_account(account_id: int, decrypted_password: Optional[str
                          logger.debug(f"[IDLE Task {account_id}] IDLE wait task cancelled before result (likely stop event).")
                          # Nicht breaken, damit die Verbindung sauber geschlossen wird
                     except Exception as e:
-                         logger.error(f"[IDLE Task {account_id}] Error processing IDLE responses: {e}. Proceeding with UID check anyway.", exc_info=True)
+                         logger.info(f"[IDLE Task {account_id}] IDLE responses konnten nicht verarbeitet werden (Timeout/Cancel): {e}. Proceeding with UID check anyway.")
                 else:
                      # Sollte nicht passieren, da FIRST_COMPLETED verwendet wird
                      logger.warning(f"[IDLE Task {account_id}] asyncio.wait finished unexpectedly without idle_wait_task or stop_wait_task in done set. Proceeding with UID check.")

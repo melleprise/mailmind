@@ -257,17 +257,17 @@ def generate_markdown_for_email_task(email_id: int):
     try:
         email_instance = Email.objects.get(id=email_id)
         logger.debug(f"Starting markdown generation for email ID: {email_id}")
-
+        logger.info(f"Markdown-Trigger: body_html vorhanden: {bool(email_instance.body_html)}, body_text vorhanden: {bool(email_instance.body_text)}")
         if not email_instance.body_html:
             logger.debug(f"No HTML body found for email {email_id}. Checking for body_text.")
-            # --- NEU: Fallback auf body_text --- 
             if email_instance.body_text:
-                 email_instance.markdown_body = email_instance.body_text # Kopiere body_text
+                 logger.info(f"Markdown-Entscheidung: Kein HTML, aber body_text vorhanden. Kopiere body_text als Markdown.")
+                 email_instance.markdown_body = email_instance.body_text
                  logger.info(f"No HTML body for email {email_id}, copied body_text to markdown_body.")
             else:
-                 email_instance.markdown_body = "" # Setze leer, wenn beides fehlt
+                 logger.info(f"Markdown-Entscheidung: Weder HTML noch body_text vorhanden. Setze Markdown leer.")
+                 email_instance.markdown_body = ""
                  logger.debug(f"No HTML or Text body found for email {email_id}, setting empty markdown.")
-            # -----------------------------------
             email_instance.save(update_fields=['markdown_body'])
             return
 
@@ -301,7 +301,8 @@ def generate_markdown_for_email_task(email_id: int):
         # Maximal zwei Leerzeilen hintereinander
         markdown_processed = re.sub(r'\n{3,}', '\n\n', markdown_processed).strip()
 
-        email_instance.markdown_body = markdown_processed # Verwende den bereinigten Markdown
+        logger.info(f"Markdown-Entscheidung: HTML vorhanden, Markdown wird erzeugt und gespeichert.")
+        email_instance.markdown_body = markdown_processed
         email_instance.save(update_fields=['markdown_body'])
         logger.info(f"Successfully generated and saved markdown for email ID: {email_id}")
 

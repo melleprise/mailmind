@@ -22,9 +22,9 @@ class EmailAccountViewSet(ModelViewSet):
 
         # Enqueue the task
         async_task(
-            'apps.users.tasks.run_initial_sync_for_account', # Path to the new task function
+            'apps.users.tasks.run_initial_sync_for_account_v2', # Neuer Task-Name
             account.id,
-            account.email, # Pass email for the command
+            account.user.email, # User-E-Mail
             request.user.id, # Pass user ID for WebSocket targeting
             task_name=f"Initial Sync for Account {account.id}",
             hook='apps.users.tasks.sync_task_complete_hook' # Optional: hook on completion
