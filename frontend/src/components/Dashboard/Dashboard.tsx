@@ -162,6 +162,10 @@ export const Dashboard: React.FC = () => {
               return [message.payload, ...prev];
             });
           }
+          if (message.type === 'email.refresh') {
+            console.log('[Dashboard GENERAL WS] email.refresh empfangen, triggere Reload der E-Mail-Liste.');
+            window.location.reload(); // oder: fetchEmails() aufrufen, wenn vorhanden
+          }
         } catch (err) {
           console.error('[Dashboard GENERAL WS] Error parsing message:', err, event.data);
         }

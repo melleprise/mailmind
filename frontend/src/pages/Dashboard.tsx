@@ -64,8 +64,11 @@ const saveSelectedEmailId = (id: number | null) => {
   }
 };
 
+console.log('[Dashboard] Datei geladen, Komponente wird initialisiert...');
+
 export const Dashboard: React.FC = () => {
-  const { user, isAuthenticated } = useAuth();
+  console.log('[Dashboard] Render START');
+  const { user, isAuthenticated, token } = useAuth();
   const queryClient = useQueryClient();
   const setSelectedEmailIdStore = useEmailStore((state) => state.setSelectedEmailId);
   const clearSelectedEmailStore = useEmailStore((state) => state.clearSelectedEmail);
@@ -178,6 +181,7 @@ export const Dashboard: React.FC = () => {
   }, []);
 
   const fetchEmailBatch = useCallback(async (page: number, folderToFetch?: string, accountToFetch?: number | 'all') => {
+    console.log('[Dashboard] fetchEmailBatch START', { page, folderToFetch, accountToFetch });
     const effectiveFolder = folderToFetch || selectedFolder;
     const effectiveAccount = accountToFetch ?? selectedAccountId;
 
@@ -193,6 +197,7 @@ export const Dashboard: React.FC = () => {
 
     try {
       const response = await getEmails({ page, limit: EMAILS_PAGE_SIZE, folder: effectiveFolder, account: effectiveAccount });
+      console.log('[Dashboard] fetchEmailBatch SUCCESS', response);
       // console.log(`[fetchEmailBatch] Response for page ${page}: ${response.results.length} items, hasMore: ${response.next !== null}`);
       setEmails(prevEmails => page === 1 ? response.results : [...prevEmails, ...response.results]);
       setTotalEmails(response.count);
@@ -202,7 +207,7 @@ export const Dashboard: React.FC = () => {
         setInitialLoadComplete(true);
       }
     } catch (err) {
-      console.error("[fetchEmailBatch] Error:", err);
+      console.error('[Dashboard] fetchEmailBatch ERROR:', err);
       setEmailError('Failed to load emails.');
       setHasMore(false);
       setInitialLoadComplete(true);
@@ -212,12 +217,13 @@ export const Dashboard: React.FC = () => {
       }
     } finally {
       setLoadingEmails(false);
-      console.log(`%c[fetchEmailBatch] FINALLY: setLoadingEmails(false) executed.`, 'color: orange; font-weight: bold;');
+      console.log('[Dashboard] fetchEmailBatch FINALLY: setLoadingEmails(false) executed.');
     }
   }, [selectedFolder, selectedAccountId]);
 
   // Effect for initializing and handling folder/account changes
   useEffect(() => {
+    console.log('[Dashboard] useEffect: selectedFolder/selectedAccountId geändert:', selectedFolder, selectedAccountId);
     const folderToLoad = selectedFolder || 'INBOX';
     // console.log(`[FolderEffect] Folder: '${folderToLoad}', Account: '${selectedAccountId}'`);
 
@@ -240,6 +246,7 @@ export const Dashboard: React.FC = () => {
 
   // Main effect for restoring selected email ID or selecting default after emails load
   useEffect(() => {
+    console.log('[Dashboard] useEffect: emails/initialLoadComplete/hasMore/selectedFolder/selectedAccountId:', { emails, initialLoadComplete, hasMore, selectedFolder, selectedAccountId });
     // console.log(`%c[RestoreSelectionEffect] === HOOK ENTRY === InitialLoadComplete: ${initialLoadComplete}, Loading: ${loadingEmails}, Target: ${targetEmailIdToRestoreRef.current}, Emails: ${emails.length}`, 'color: cyan; font-weight: bold;');
 
     // Wait until the initial load (page 1) is complete AND loading is finished
@@ -310,6 +317,7 @@ export const Dashboard: React.FC = () => {
 
   // Effect to fetch email detail when currentSelectedEmailIdValue changes
   useEffect(() => {
+    console.log('[Dashboard] useEffect: currentSelectedEmailIdValue geändert:', currentSelectedEmailIdValue);
     if (currentSelectedEmailIdValue !== null) {
       // console.log(`[EmailDetailEffect] selectedEmailId (internal) changed to ${currentSelectedEmailIdValue}. Fetching details.`);
       setLoadingEmailDetail(true);
@@ -424,123 +432,67 @@ export const Dashboard: React.FC = () => {
       }
   }, []);
 
-  // WebSocket useEffect (Restoring basic structure)
-  // useEffect(() => {
-  //   if (!isAuthenticated) {
-  //       // If not authenticated, ensure any existing connection is closed.
-  //       wsRef.current?.close();
-  //       wsRef.current = null;
-  //       return; 
-  //   }
+  // WebSocket für E-Mail-Events (email.refresh)
+  useEffect(() => {
+    if (!isAuthenticated || !token) {
+      console.warn('[Dashboard GENERAL WS] Kein Token oder nicht authentifiziert, WebSocket wird nicht aufgebaut.');
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+      return;
+    }
+    let isActive = true;
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsHost = import.meta.env.VITE_WS_BASE_URL || `${window.location.hostname}:8000`;
+    const wsUrl = `${wsScheme}://${wsHost}/ws/general/?token=${token}`;
+    console.log('[Dashboard GENERAL WS] Connecting to', wsUrl);
+    const socket = new WebSocket(wsUrl);
+    wsRef.current = socket;
+    socket.onopen = () => {
+      if (!isActive) return;
+      console.log('[Dashboard GENERAL WS] WebSocket connected.');
+    };
+    socket.onmessage = (event) => {
+      if (!isActive) return;
+      console.log('[Dashboard GENERAL WS] WebSocket Nachricht empfangen:', event.data);
+      try {
+        const message = JSON.parse(event.data);
+        console.log('[Dashboard GENERAL WS] Parsed message:', message);
+        // --- Hole aktuelle Werte direkt aus dem Store ---
+        const folder = useEmailStore.getState().selectedFolder || 'INBOX';
+        const accountId = useEmailStore.getState().selectedAccountId ?? 'all';
+        const eventType = message.type;
+        if (eventType === 'email.refresh' || eventType === 'email_new' || eventType === 'email.new') {
+          console.log('[Dashboard GENERAL WS] Event empfangen... E-Mail-Liste wird neu geladen. Typ:', eventType, 'selectedFolder:', folder, 'selectedAccountId:', accountId);
+          fetchEmailBatch(1, folder, accountId);
+          console.log('[Dashboard GENERAL WS] fetchEmailBatch wurde aufgerufen.');
+        } else {
+          console.log('[Dashboard GENERAL WS] Unbehandeltes Event empfangen:', message);
+        }
+      } catch (err) {
+        console.error('[Dashboard GENERAL WS] Fehler beim Parsen der Nachricht:', err, event.data);
+      }
+    };
+    socket.onerror = (err) => {
+      if (!isActive) return;
+      console.error('[Dashboard GENERAL WS] WebSocket Fehler:', err);
+    };
+    socket.onclose = (event) => {
+      if (!isActive) return;
+      console.warn('[Dashboard GENERAL WS] WebSocket Verbindung geschlossen:', event);
+      wsRef.current = null;
+    };
+    return () => {
+      isActive = false;
+      if (wsRef.current) {
+        wsRef.current.close();
+        wsRef.current = null;
+      }
+    };
+  }, [isAuthenticated, token, selectedFolder, selectedAccountId]);
 
-  //   let isActive = true; // Flag to prevent updates after unmount
-
-  //   const connect = () => {
-  //       const currentToken = localStorage.getItem('token');
-  //       if (!currentToken) {
-  //           console.error("WebSocket: Auth token not found.");
-  //           return;
-  //       }
-  //       if (wsRef.current && wsRef.current.readyState < WebSocket.CLOSING) {
-  //           // console.log("[Dashboard WS] WebSocket already exists or is connecting/open. Skipping.");
-  //           return;
-  //       }
-
-  //       const wsScheme = window.location.protocol === "https:" ? "wss" : "ws";
-  //       const wsHost = import.meta.env.VITE_WS_BASE_URL || `${window.location.hostname}:8000`;
-  //       const wsUrl = `${wsScheme}://${wsHost}/ws/general/?token=${currentToken}`;
-
-  //       // console.log(`[Dashboard WS] Attempting WebSocket connection to: ${wsUrl}`);
-  //       const socket = new WebSocket(wsUrl);
-  //       wsRef.current = socket; // Assign to the top-level ref
-
-  //       socket.onopen = () => {
-  //           if (!isActive) return;
-  //           // console.log('[Dashboard WS] WebSocket connection opened.');
-  //       };
-
-  //       socket.onmessage = (event) => {
-  //           if (!isActive) return;
-  //           try {
-  //               // console.log('[Dashboard WS] Raw message event received:', event.data);
-  //               const message = JSON.parse(event.data);
-  //               // console.log('[Dashboard WS] Parsed message received:', message);
-
-  //               if (message.type === 'email.updated') {
-  //                   const updatedEmailId = message.data?.email_id;
-  //                   if (updatedEmailId !== undefined) {
-  //                       // console.log(`[Dashboard WS] Received 'email.updated' for Email ID: ${updatedEmailId}. Fetching details...`);
-  //                       setLoadingEmailDetail(true); // Indicate loading
-  //                       getEmailDetail(updatedEmailId)
-  //                           .then(updatedEmailData => {
-  //                               if (!isActive) return;
-  //                               // console.log(`[Dashboard WS] Successfully fetched details for updated email ${updatedEmailId}.`);
-  //                               setEmails(prevEmails =>
-  //                                   prevEmails.map(email =>
-  //                                       email.id === updatedEmailId
-  //                                           ? { ...email, ...updatedEmailData } // Update existing email item
-  //                                           : email
-  //                                   )
-  //                               );
-  //                               if (updatedEmailId === currentSelectedEmailIdValue) {
-  //                                   // console.log(`[Dashboard WS] Updated email ${updatedEmailId} is currently selected. Updating detail view.`);
-  //                                   setCurrentEmailDetail(updatedEmailData);
-  //                                   setEmailDetailKey(prevKey => prevKey + 1);
-  //                               } else {
-  //                                   // console.log(`[Dashboard WS] Updated email ${updatedEmailId} is NOT currently selected.`);
-  //                               }
-  //                           })
-  //                           .catch(err => {
-  //                               if (!isActive) return;
-  //                               console.error(`[Dashboard WS] Error fetching updated email details for ${updatedEmailId}:`, err);
-  //                               // Maybe set a specific error state for this?
-  //                           })
-  //                           .finally(() => {
-  //                               if (!isActive) return; 
-  //                               setLoadingEmailDetail(false); // Stop loading indicator
-  //                           });
-  //                   }
-  //               } else if (message.type === 'error') {
-  //                   console.error('[Dashboard WS] Error message from server:', message.error);
-  //                   setErrorEmailDetail(`WebSocket Error: ${message.error}`);
-  //                   // Decide if loadingEmailDetail should be stopped here
-  //               } else {
-  //                   // console.warn('[Dashboard WS] Received unhandled message type:', message.type);
-  //               }
-  //           } catch (error) {
-  //               console.error('[Dashboard WS] Error in WebSocket message handling:', error);
-  //               setErrorEmailDetail('WebSocket Error: Could not process message.');
-  //           }
-  //       };
-
-  //       socket.onerror = (error) => {
-  //           if (!isActive) return;
-  //           console.error('[Dashboard WS] WebSocket error:', error);
-  //           setErrorEmailDetail('WebSocket connection error.');
-  //       };
-
-  //       socket.onclose = (event) => { // This handler itself needs to be defined correctly
-  //            if (!isActive) return;
-  //            console.log(`[Dashboard WS] WebSocket connection closed. Code: ${event.code}`);
-  //            wsRef.current = null; // Clear the ref on close
-  //            // Optional: Add retry logic here if needed, using retryTimeoutRef
-  //       };
-  //   }; // End of connect function definition
-
-  //   connect(); // Call the connect function
-
-  //   // Cleanup function
-  //   return () => {
-  //       // console.log("[Dashboard WS] Cleanup: Closing WebSocket.");
-  //       isActive = false;
-  //       wsRef.current?.close(1000, "Component unmounting"); // Close with normal code
-  //       wsRef.current = null;
-  //       // if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current); // Clear retry timer if used
-  //   };
-  // // Dependencies: Re-run if authentication status changes or selected email changes (for context in onmessage?)
-  // // Be careful with dependencies here to avoid unnecessary reconnects.
-  // }, [isAuthenticated, currentSelectedEmailIdValue]); // Example dependencies
-
+  console.log('[Dashboard] Render END');
   return (
     <Box sx={{ display: 'flex', width: '100%', height: 'calc(100vh - 64px)', overflow: 'hidden', bgcolor: 'background.default', margin: 0, padding: 0 }}>
         {/* <div style={{ padding: '20px', color: 'white' }}>Dashboard Component Rendered - Test</div> */}

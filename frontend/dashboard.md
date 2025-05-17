@@ -53,4 +53,11 @@ Dieses Dokument beschreibt die Hauptfunktionen der `Dashboard.tsx` und `AISugges
     - Die interne Aufteilung (Übersicht oder Detail) nutzt Flexbox, um den verfügbaren Platz (ohne die Button-Leiste) zu füllen.
     - Die Button-Leiste (Send, Spam, Correct, Refine, Refresh) ist immer am unteren Rand fixiert.
 
+## WebSocket-Integration für E-Mail-Events
+
+- Das Dashboard baut eine WebSocket-Verbindung zu `/ws/general/?token=...` auf (Token aus AuthContext).
+- Bei Empfang des Events `email.refresh` wird **nur noch die E-Mail-Liste gezielt neu geladen** (`fetchEmailBatch`), kein `window.location.reload()` mehr. Die UI bleibt erhalten.
+- Es gibt Debug-Logs für Connect, Empfang und Fehler.
+- Die Verbindung wird bei Logout oder Token-Änderung automatisch geschlossen.
+
 *Zuletzt aktualisiert: [Datum - bitte manuell pflegen]* 

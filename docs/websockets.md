@@ -62,4 +62,32 @@
     }
   }
   ```
+
+## 7. Soft-Delete von E-Mails (IMAP Sync)
+
+- Wenn beim IMAP-Sync (z.B. nach IDLE) eine UID nicht mehr im Server-Listing eines Folders ist, wird die entsprechende E-Mail in der lokalen DB mit `is_deleted_on_server=True` markiert (Soft-Delete).
+- Das Frontend filtert E-Mails mit `is_deleted_on_server=true` automatisch aus der Inbox-Ansicht heraus.
+- Die E-Mail bleibt in der Datenbank (z.B. für Undo, Logs, spätere echte Löschung).
+- Erst bei explizitem User-Wunsch oder nach längerer Zeit werden solche Mails endgültig gelöscht (Cleanup-Job).
+
+## 8. Inbox-Refresh nach IDLE-Sync
+
+- Nach jedem abgeschlossenen IDLE-Sync sendet das Backend ein WebSocket-Event `email.refresh` an die User-Gruppe (`user_{user_id}_events`).
+- Das Frontend reagiert auf dieses Event und lädt die E-Mail-Liste neu (API-Call oder Reload).
+- Dadurch werden neue, gelöschte und verschobene E-Mails sofort korrekt angezeigt – ohne Polling oder Reload.
+- Beispiel-Payload:
+  ```json
+  {
+    "type": "email.refresh",
+    "payload": { "folder": "INBOX" }
+  }
+  ```
+
+## Aktuelles Verhalten (2025-05-17)
+
+- Das Frontend lauscht auf die Events `email.refresh`, `email_new` und `email.new`.
+- Nach Empfang eines Events wird die E-Mail-Liste gezielt neu geladen (kein window.location.reload()).
+- Falls Folder/AccountId nicht gesetzt sind, wird auf 'INBOX' und 'all' zurückgegriffen.
+- Ausführliches Logging in der Browser-Konsole für Connect, Event, fetchEmailBatch, Fehler.
+- Typische Fehlerursachen (z.B. Store-Werte undefined, require im Browser) und Debugging-Tipps sind dokumentiert.
  

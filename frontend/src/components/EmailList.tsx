@@ -166,7 +166,7 @@ export const EmailList: React.FC<EmailListProps> = ({
         position: 'relative',
       }}
     >
-      {emails.map((email) => (
+      {emails.filter(email => !email.is_deleted_on_server).map((email) => (
         <ListItemButton
           component="li"
           key={email.id}

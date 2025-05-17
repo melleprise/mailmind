@@ -222,6 +222,7 @@ class EmailSerializer(serializers.ModelSerializer):
     to_addresses = serializers.ListField(child=serializers.EmailField(), read_only=True)
     cc_addresses = serializers.ListField(child=serializers.EmailField(), read_only=True)
     bcc_addresses = serializers.ListField(child=serializers.EmailField(), read_only=True)
+    is_deleted_on_server = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = Email
@@ -238,7 +239,8 @@ class EmailSerializer(serializers.ModelSerializer):
             # Add the summary fields here
             'short_summary',
             'medium_summary',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at',
+            'is_deleted_on_server'
         )
         read_only_fields = ('id', 'account', 'message_id', 'uid', 'conversation_id',
                             'from_address', 'from_name',
@@ -250,7 +252,8 @@ class EmailSerializer(serializers.ModelSerializer):
                             'ai_processed', 'ai_processed_at',
                             'suggestions',
                             'short_summary', 'medium_summary',
-                            'created_at', 'updated_at'
+                            'created_at', 'updated_at',
+                            'is_deleted_on_server'
                            )
 
     def get_has_attachments(self, obj):

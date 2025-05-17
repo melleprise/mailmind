@@ -323,17 +323,45 @@ async def run_idle_for_account(account_id: int, decrypted_password: Optional[str
                     logger.debug(f"[IDLE Task {account_id}] Comparing UIDs. Known: {known_uids}")
                     added_uids = new_uids_after_idle - known_uids
                     logger.debug(f"[IDLE Task {account_id}] Calculated added_uids: {added_uids}")
+                    removed_uids = known_uids - new_uids_after_idle
+                    logger.debug(f"[IDLE Task {account_id}] Calculated removed_uids: {removed_uids}")
                     # --- ENDE LOG ---
 
                     if added_uids:
                         logger.info(f"[IDLE Task {account_id}] Detected {len(added_uids)} new UIDs: {list(added_uids)[:10]}... Triggering full folder sync task.")
-                        # Trigger EINE Task für den gesamten Ordner
                         async_task('mailmind.imap.tasks.sync_folder_on_idle_update', account_id, folder_to_monitor)
-                        # --- Logge Update von known_uids ---
                         old_known_count = len(known_uids)
-                        known_uids.update(added_uids) # Update known UIDs
+                        known_uids.update(added_uids)
                         logger.debug(f"[IDLE Task {account_id}] Updated known_uids. Old count: {old_known_count}, New count: {len(known_uids)}")
-                        # --- ENDE LOG ---
+
+                    if removed_uids:
+                        logger.info(f"[IDLE Task {account_id}] Detected {len(removed_uids)} removed UIDs: {list(removed_uids)[:10]}... Marking as deleted in DB.")
+                        async def mark_emails_deleted_and_notify(account_id, folder_name, removed_uids):
+                            from mailmind.core.models import Email, EmailAccount
+                            from django.db.models import Q
+                            from channels.layers import get_channel_layer
+                            from asgiref.sync import async_to_sync
+                            try:
+                                # ORM-Operationen asynchron
+                                account_obj = await database_sync_to_async(EmailAccount.objects.get)(id=account_id)
+                                emails_to_update = Email.objects.filter(account=account_obj, folder_name=folder_name, uid__in=removed_uids, is_deleted_on_server=False)
+                                updated_count = await database_sync_to_async(emails_to_update.update)(is_deleted_on_server=True)
+                                logger.info(f"[IDLE Task {account_id}] Marked {updated_count} emails as deleted in DB (folder: {folder_name}).")
+                                # WebSocket-Event anstoßen
+                                try:
+                                    user_id = await database_sync_to_async(lambda acc: acc.user.id)(account_obj)
+                                    group_name = f'user_{user_id}_events'
+                                    message = {
+                                        'type': 'email.refresh',
+                                        'payload': {'folder': folder_name}
+                                    }
+                                    await database_sync_to_async(async_to_sync(get_channel_layer().group_send))(group_name, message)
+                                    logger.info(f"[IDLE Task {account_id}] WebSocket-Event 'email.refresh' an Gruppe {group_name} gesendet (wegen Löschung).")
+                                except Exception as ws_err:
+                                    logger.error(f"[IDLE Task {account_id}] WebSocket-Event 'email.refresh' fehlgeschlagen: {ws_err}", exc_info=True)
+                            except Exception as del_err:
+                                logger.error(f"[IDLE Task {account_id}] Fehler beim Markieren gelöschter UIDs: {del_err}", exc_info=True)
+                        await mark_emails_deleted_and_notify(account_id, folder_to_monitor, removed_uids)
                     # else: # Optional: Log, wenn keine neuen UIDs gefunden wurden
                     #    logger.debug(f"[IDLE Task {account_id}] No new UIDs detected after comparison.")
                 # else: # Fetch der UIDs ist fehlgeschlagen (Fehler wurde oben geloggt)

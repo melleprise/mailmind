@@ -90,4 +90,10 @@ Die Funktion `sync_account(account_id: int)` in `backend/mailmind/imap/sync.py` 
 
 Bitte gib mir Feedback zu diesen Punkten und Fragen. Sobald wir das geklärt haben, können wir mit der Implementierung von Schritt 1 (Erstellung des Funktionsgerüsts) beginnen.
 
+## WebSocket-Integration (2025-05-17)
+- Events: `email.refresh`, `email_new`, `email.new` → gezieltes Nachladen der E-Mail-Liste
+- Kein window.location.reload() mehr, UI bleibt erhalten
+- Fallback: 'INBOX' und 'all' falls Folder/AccountId nicht gesetzt
+- Logging und Debugging-Hinweise ergänzt
+
 

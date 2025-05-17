@@ -390,9 +390,28 @@ def sync_folder_on_idle_update(account_id: int, folder_name: str):
                 total_processed = 0
                 total_errors = 0
 
-        # Optional: Update Status? Hier nicht unbedingt nötig, da es nur ein Update ist.
-        # if total_errors > 0:
-        #      logger.warning(f"IDLE SYNC for '{folder_name}' completed with {total_errors} errors.")
+            # Nach dem Vergleich der UIDs:
+            for local_email in Email.objects.filter(account_id=account_id, folder_name=folder_name):
+                if local_email.uid not in server_uids:
+                    local_email.is_deleted_on_server = True
+                    local_email.save(update_fields=["is_deleted_on_server"])
+                    logger.info(f"[IMAP Sync] UID {local_email.uid} nicht mehr auf Server in {folder_name}: lokal als gelöscht markiert.")
+
+        # Nach Abschluss des IDLE-Syncs: WebSocket-Event anstoßen
+        try:
+            from channels.layers import get_channel_layer
+            from asgiref.sync import async_to_sync
+            account_user_id = account.user.id
+            channel_layer = get_channel_layer()
+            group_name = f'user_{account_user_id}_events'
+            message = {
+                'type': 'email.refresh',
+                'payload': {'folder': folder_name}
+            }
+            async_to_sync(channel_layer.group_send)(group_name, message)
+            logger.info(f"[IMAP Sync] WebSocket-Event 'email.refresh' an Gruppe {group_name} gesendet.")
+        except Exception as ws_err:
+            logger.error(f"[IMAP Sync] WebSocket-Event 'email.refresh' fehlgeschlagen: {ws_err}", exc_info=True)
 
     except MailboxLoginError as e_login:
         logger.error(f"IDLE SYNC: Login failed for account {account_id}: {e_login}")

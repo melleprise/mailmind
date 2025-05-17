@@ -238,3 +238,24 @@ mailmind-dev-worker    | INFO 2025-04-24 13:14:16,752 cluster 7 274742809128992 
 
 
 w Enable Watch
+
+## WebSocket-Logs (Frontend/Backend)
+
+### Frontend
+- [Dashboard GENERAL WS] Connecting to ws://...
+- [Dashboard GENERAL WS] WebSocket connected.
+- [Dashboard GENERAL WS] Event empfangen... E-Mail-Liste wird neu geladen. Typ: email.refresh selectedFolder: INBOX selectedAccountId: all
+- [Dashboard] fetchEmailBatch START ...
+- [Dashboard] fetchEmailBatch SUCCESS ...
+- [Dashboard GENERAL WS] Fehler beim Parsen der Nachricht: ...
+- [Dashboard GENERAL WS] fetchEmailBatch NICHT aufgerufen, weil Folder oder AccountId fehlen. undefined undefined
+- Fehler: require is not defined
+
+### Backend
+- [EmailConsumer] connect() aufgerufen. User in scope: ...
+- [EmailConsumer] email_refresh-Event empfangen für user ...
+- [ws_protocol] Sent WebSocket packet to client for ...
+
+### Typische Fehlerbilder
+- selectedFolder/selectedAccountId undefined → Fallback greift
+- require im Browser → Fehler, muss durch ES6-Import ersetzt werden

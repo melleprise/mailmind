@@ -123,3 +123,11 @@ class EmailConsumer(AsyncWebsocketConsumer):
             'data': event_data # Forward the whole data dict (provider, status, message)
         }))
     # --- ENDE NEUER HANDLER --- 
+
+    # Handler für "email.refresh" Nachrichten von der Gruppe
+    async def email_refresh(self, event):
+        logger.info(f"[EmailConsumer] email_refresh-Event empfangen für user {self.user.id}: {event}")
+        await self.send(text_data=json.dumps({
+            'type': 'email.refresh',
+            'payload': event.get('payload', {})
+        })) 

@@ -208,4 +208,10 @@ Für den Provider freelance.de werden Zugangsdaten wie folgt gespeichert:
 
 Das Passwort wird **niemals** im Klartext gespeichert, sondern ausschließlich verschlüsselt abgelegt. Die Entschlüsselung erfolgt nur im Backend-Code über den symmetrischen Schlüssel (Fernet, abgeleitet aus SECRET_KEY). Die Speicherung und Logik ist produktionssicher und entspricht dem Standard für API-Credentials im System.
 
-Modell: `FreelanceProviderCredential` in `mailmind.freelance.models`. 
+Modell: `FreelanceProviderCredential` in `mailmind.freelance.models`.
+
+### WebSocket-Integration (Stand 2025-05-17)
+- Events: `email.refresh`, `email_new`, `email.new` → lösen gezieltes Nachladen der E-Mail-Liste aus
+- Fallback: Wenn Folder/AccountId nicht gesetzt, wird 'INBOX' und 'all' verwendet
+- Logging: Ausführliche Logs in der Browser-Konsole für alle Phasen
+- Debugging: Typische Fehler (Store undefined, require im Browser) und Lösungen dokumentiert 
