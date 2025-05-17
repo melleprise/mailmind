@@ -22,7 +22,7 @@ import { CorrectingState } from './types'; // Importiere Typen
 import { useEmailStore } from '../../stores/emailStore'; // Import the store
 
 // Definiere die Props, die diese Komponente benötigt
-interface ReplyViewProps {
+interface ReplyMailViewProps {
   selectedEmailId: number | null;
   suggestions: AISuggestion[];
   originalSender: string | undefined;
@@ -37,7 +37,7 @@ interface ReplyViewProps {
   handleInternalRefresh: () => void;
 }
 
-export const ReplyView: React.FC<ReplyViewProps> = ({
+export const ReplyMailView: React.FC<ReplyMailViewProps> = ({
   selectedEmailId,
   suggestions,
   originalSender,
@@ -78,11 +78,10 @@ export const ReplyView: React.FC<ReplyViewProps> = ({
 
   // Sync lokalen State bei Suggestion-Wechsel, Undo, Redo
   useEffect(() => {
+    if (!selectedEmailId) return;
     setLocalSubject(draft.subject);
-  }, [draft.subject]);
-  useEffect(() => {
     setLocalBody(draft.body);
-  }, [draft.body]);
+  }, [selectedEmailId, draft.subject, draft.body]);
 
   // Handler für Subject
   const handleLocalSubjectChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -199,31 +198,139 @@ export const ReplyView: React.FC<ReplyViewProps> = ({
     }
   }, [correctionError]);
 
-  // ... local change/selection handlers (using store actions for subject/body) ...
-  // handleLocalSubjectChange and handleLocalBodyChange remain as they call the callbacks
-  
-  const handleLocalSelectSuggestion = (index: number) => {
-      console.log(`[ReplyView] handleLocalSelectSuggestion called with index: ${index}`); // Log entry
-      if (selectedEmailId === null) return;
-      
-      if (index === selectedSuggestionIndex) {
-          console.log(`[ReplyView] Deselecting suggestion index: ${index}`); // Log deselect
-          setSelectedSuggestionIndex(null);
-      } else {
-          const suggestion = suggestions[index];
-          if (suggestion) {
-              console.log(`[ReplyView] Selecting suggestion index: ${index}`); // Log select
-              setSelectedSuggestionIndex(index);
-              if (selectedEmailId) {
-                setDraftSubject(selectedEmailId, suggestion.title || draft.subject);
-                setDraftBody(selectedEmailId, suggestion.content);
-              }
-              setCustomPrompt(""); // Clear refine prompt (uses setter from hook)
-          } else {
-              console.warn(`[ReplyView] Suggestion not found at index: ${index}`);
-              setSelectedSuggestionIndex(null); // Ensure it's null if suggestion not found
-          }
+  // --- Hybrid-Logik für Suggestion-Auswahl (localStorage + Backend) ---
+  useEffect(() => {
+    if (!selectedEmailId) return;
+    const localKey = `selectedSuggestionIndex_${selectedEmailId}`;
+    let didSet = false;
+    // 1. localStorage lesen
+    const localIdx = localStorage.getItem(localKey);
+    if (localIdx !== null && localIdx !== '') {
+      const idx = Number(localIdx);
+      setSelectedSuggestionIndex(idx);
+      if (suggestions[idx]) {
+        setDraftSubject(selectedEmailId, suggestions[idx].title || draft.subject);
+        setDraftBody(selectedEmailId, suggestions[idx].content);
       }
+      didSet = true;
+    }
+    // 2. Backend-Draft laden
+    fetch(`/api/v1/drafts/by_email/?email_id=${selectedEmailId}`, {
+      headers: { 'Authorization': `Token ${localStorage.getItem('token')}` }
+    })
+      .then(r => {
+        if (r.status === 404) {
+          // Draft existiert nicht: Store leeren und Draft im Backend anlegen
+          setDraftSubject(selectedEmailId, '');
+          setDraftBody(selectedEmailId, '');
+          fetch(`/api/v1/drafts/`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Token ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ email: selectedEmailId, subject: '', body: '' })
+          });
+          return null;
+        }
+        return r.ok ? r.json() : null;
+      })
+      .then(data => {
+        if (data) {
+          // subject/body aus Backend-Draft nur übernehmen, wenn Store leer ist
+          if ((draft.subject === '' || draft.subject === undefined) && data.subject) {
+            setDraftSubject(selectedEmailId, data.subject);
+          }
+          if ((draft.body === '' || draft.body === undefined) && data.body) {
+            setDraftBody(selectedEmailId, data.body);
+          }
+        }
+        if (data && typeof data.selected_suggestion_index === 'number') {
+          setSelectedSuggestionIndex(data.selected_suggestion_index);
+          localStorage.setItem(localKey, String(data.selected_suggestion_index));
+          if (suggestions[data.selected_suggestion_index]) {
+            setDraftSubject(selectedEmailId, suggestions[data.selected_suggestion_index].title || draft.subject);
+            setDraftBody(selectedEmailId, suggestions[data.selected_suggestion_index].content);
+          }
+          didSet = true;
+        }
+        // Falls weder localStorage noch Backend einen Index liefern, auf null lassen
+      });
+  }, [selectedEmailId, suggestions]);
+
+  // selectedSuggestionIndex immer auf 0 setzen, wenn Suggestions existieren und noch keine Auswahl (und keine Hybrid-Initialisierung läuft)
+  useEffect(() => {
+    if (
+      suggestions.length > 0 &&
+      selectedSuggestionIndex === null &&
+      (draft.subject === '' || draft.body === '' || draft.subject === undefined || draft.body === undefined)
+    ) {
+      setSelectedSuggestionIndex(0);
+      if (selectedEmailId && suggestions[0]) {
+        setDraftSubject(selectedEmailId, suggestions[0].title || '');
+        setDraftBody(selectedEmailId, suggestions[0].content);
+      }
+    }
+  }, [suggestions, selectedSuggestionIndex, selectedEmailId, setDraftSubject, setDraftBody, draft.subject, draft.body]);
+
+  const handleLocalSelectSuggestion = (index: number) => {
+    if (selectedEmailId === null) return;
+    const localKey = `selectedSuggestionIndex_${selectedEmailId}`;
+    if (index === selectedSuggestionIndex) {
+      setSelectedSuggestionIndex(null);
+      localStorage.setItem(localKey, '');
+      // Backend: Draft PATCH
+      fetch(`/api/v1/drafts/by_email/?email_id=${selectedEmailId}`, {
+        headers: { 'Authorization': `Token ${localStorage.getItem('token')}` }
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data && data.id) {
+            fetch(`/api/v1/drafts/${data.id}/`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Token ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify({ selected_suggestion_index: null })
+            });
+          }
+        });
+    } else {
+      setSelectedSuggestionIndex(index);
+      localStorage.setItem(localKey, String(index));
+      if (suggestions[index]) {
+        setDraftSubject(selectedEmailId, suggestions[index].title || draft.subject);
+        setDraftBody(selectedEmailId, suggestions[index].content);
+      }
+      // Backend: Draft PATCH
+      fetch(`/api/v1/drafts/by_email/?email_id=${selectedEmailId}`, {
+        headers: { 'Authorization': `Token ${localStorage.getItem('token')}` }
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data && data.id) {
+            fetch(`/api/v1/drafts/${data.id}/`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Token ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify({ selected_suggestion_index: index })
+            });
+          } else {
+            // Draft existiert nicht: anlegen
+            fetch(`/api/v1/drafts/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Token ${localStorage.getItem('token')}`
+              },
+              body: JSON.stringify({ email: selectedEmailId, selected_suggestion_index: index })
+            });
+          }
+        });
+    }
   };
 
   // Calculate button disabled state before return
@@ -332,12 +439,17 @@ export const ReplyView: React.FC<ReplyViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleUndo, handleRedo]);
 
-  // selectedSuggestionIndex immer auf 0 setzen, wenn Suggestions existieren und noch keine Auswahl
+  // Nach einem Refresh: Wähle immer den ersten Vorschlag aus und setze Subject/Body
   useEffect(() => {
-    if (suggestions.length > 0 && selectedSuggestionIndex === null) {
+    if (!loading && suggestions.length > 0) {
       setSelectedSuggestionIndex(0);
+      const suggestion = suggestions[0];
+      if (selectedEmailId && suggestion) {
+        setDraftSubject(selectedEmailId, suggestion.title || '');
+        setDraftBody(selectedEmailId, suggestion.content || '');
+      }
     }
-  }, [suggestions, selectedSuggestionIndex]);
+  }, [loading, suggestions, selectedEmailId, setDraftSubject, setDraftBody]);
 
   // JSX aus AISuggestions.tsx extrahiert
   return (

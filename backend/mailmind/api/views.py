@@ -19,7 +19,7 @@ from qdrant_client.http import models as rest_models
 from .serializers import (
     EmailAccountSerializer, EmailSerializer, 
     AISuggestionSerializer, ContactSerializer,
-    EmailListSerializer, AIRequestLogSerializer, FolderSerializer, AIActionSerializer
+    EmailListSerializer, AIRequestLogSerializer, FolderSerializer, AIActionSerializer, DraftSerializer
 )
 import logging
 from imap_tools import MailBox, MailboxLoginError
@@ -30,9 +30,12 @@ from cryptography.fernet import Fernet, InvalidToken
 from rest_framework.views import APIView
 from asgiref.sync import async_to_sync
 from django.db.models import Q
-from django.db import transaction # Import transaction
-from mailmind.ai.refinement_service import refine_text_content_sync # Import new service
+from django.db import transaction, IntegrityError
+from mailmind.ai.refinement_service import refine_text_content_sync
 from apps.users.tasks import run_initial_sync_for_account_v2
+from mailmind.imap.actions import move_email
+from channels.layers import get_channel_layer
+from .models import Draft
 
 logger = logging.getLogger(__name__)
 
@@ -249,6 +252,36 @@ class EmailViewSet(viewsets.ReadOnlyModelViewSet):
             logger.error(f"[EmailViewSet] Error retrieving suggestions for Email ID {pk}: {e}", exc_info=True)
             return Response({'error': 'An error occurred while retrieving suggestions.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=['post'], url_path='move_to_trash')
+    def move_to_trash(self, request, pk=None):
+        """Verschiebt die E-Mail in den Papierkorb (IMAP + DB), setzt is_deleted_on_server und triggert WebSocket-Event."""
+        from mailmind.imap.actions import move_email
+        from channels.layers import get_channel_layer
+        from asgiref.sync import async_to_sync
+        email = self.get_object()
+        user = request.user
+        logger.info(f"[EmailViewSet] User {user.email} verschiebt Email ID {email.id} in den Papierkorb.")
+        # Sofort als gelöscht markieren
+        email.is_deleted_on_server = True
+        email.save(update_fields=['is_deleted_on_server'])
+        success = move_email(email.id, 'Trash')
+        if success:
+            # WebSocket-Event an User-Gruppe
+            try:
+                group_name = f'user_{user.id}_events'
+                channel_layer = get_channel_layer()
+                async_to_sync(channel_layer.group_send)(group_name, {
+                    'type': 'email.refresh',
+                    'payload': {'folder': 'Trash'}
+                })
+                logger.info(f"[EmailViewSet] WebSocket-Event 'email.refresh' an Gruppe {group_name} gesendet.")
+            except Exception as ws_err:
+                logger.error(f"[EmailViewSet] WebSocket-Event fehlgeschlagen: {ws_err}", exc_info=True)
+            return Response({'status': 'moved_to_trash'}, status=200)
+        else:
+            logger.error(f"[EmailViewSet] Verschieben in den Papierkorb fehlgeschlagen für Email ID {email.id}.")
+            return Response({'error': 'move_failed'}, status=500)
+
 class AISuggestionViewSet(viewsets.ModelViewSet):
     """ViewSet für KI-Vorschläge mit Update-Funktion."""
     
@@ -298,11 +331,13 @@ class AISuggestionViewSet(viewsets.ModelViewSet):
                 original_subject_for_context = suggestion.suggested_subject
                 original_body_for_context = suggestion.content
 
+            # Wenn selected_text gesetzt ist, erzwinge Snippet-Modus im Task
             corrected_text_result = async_to_sync(correct_text_with_ai)(
                 text_to_correct, 
                 request.user,
                 original_subject=original_subject_for_context, 
-                original_body=original_body_for_context
+                original_body=original_body_for_context,
+                is_snippet=True if selected_text is not None else None
             )
 
             if corrected_text_result is None:
@@ -1031,3 +1066,57 @@ class RefineTextView(APIView):
         except Exception as e:
             logger.error(f"RefineTextView: Unexpected error for user {user.email}: {e}", exc_info=True)
             return Response({"error": "An unexpected server error occurred during text refinement."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) 
+
+class DraftViewSet(viewsets.ModelViewSet):
+    serializer_class = DraftSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Draft.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        from django.db import transaction, IntegrityError
+        try:
+            with transaction.atomic():
+                serializer.save(user=self.request.user)
+        except IntegrityError as e:
+            # Upsert-Logik außerhalb des atomic-Blocks!
+            email_id = serializer.validated_data.get('email').id if 'email' in serializer.validated_data else None
+            if email_id:
+                draft = Draft.objects.filter(user=self.request.user, email_id=email_id).first()
+                if draft:
+                    # Update Draft mit neuen Feldern
+                    for field, value in serializer.validated_data.items():
+                        if field != 'user' and hasattr(draft, field):
+                            setattr(draft, field, value)
+                    draft.save()
+                    return draft
+            raise e
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.user != request.user:
+            return Response({'error': 'Forbidden'}, status=403)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.user != request.user:
+            return Response({'error': 'Forbidden'}, status=403)
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.user != request.user:
+            return Response({'error': 'Forbidden'}, status=403)
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=False, methods=['get'])
+    def by_email(self, request):
+        email_id = request.query_params.get('email_id')
+        if not email_id:
+            return Response({'error': 'email_id required'}, status=400)
+        draft = Draft.objects.filter(user=request.user, email_id=email_id).first()
+        if not draft:
+            return Response({}, status=404)
+        return Response(DraftSerializer(draft).data) 

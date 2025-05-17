@@ -34,6 +34,9 @@ def move_email(email_id: int, target_folder: str) -> bool:
              logger.error(f"Cannot map target folder '{target_folder}' to server folder for account {account.id}. Move failed.")
              return False
 
+        if target_folder.lower() == 'trash':
+            logger.info(f"[move_email] Verschiebe in Papierkorb: Email ID {email_id}, UID {uid}, Account {account.id}")
+
         with get_imap_connection(account) as mailbox:
             # We need to be in the folder where the email currently resides (or assume it works globally, less safe)
             # For simplicity, let's assume UID is unique across folders for this account or that we know the source folder.
@@ -43,13 +46,27 @@ def move_email(email_id: int, target_folder: str) -> bool:
             logger.info(f"Attempting to move email UID {uid} for account {account.id} to folder '{server_target_folder}'")
             response = mailbox.move([str(uid)], server_target_folder) # UIDs need to be strings
 
-            if response and response[0].ok: # Check if the command succeeded
+            logger.info(f"[move_email] mailbox.move response: {response}")
+            # Robustere Prüfung auf Erfolg
+            success = False
+            if response:
+                # imap_tools kann verschiedene Response-Formate liefern
+                if isinstance(response, str) and response.upper() == 'OK':
+                    success = True
+                elif isinstance(response, (list, tuple)) and response:
+                    # Suche nach 'OK' in beliebigen verschachtelten Strukturen
+                    def find_ok(obj):
+                        if isinstance(obj, str):
+                            return obj.upper() == 'OK'
+                        elif isinstance(obj, (list, tuple)):
+                            return any(find_ok(x) for x in obj)
+                        return False
+                    if find_ok(response):
+                        success = True
+            if success:
                 logger.info(f"Successfully moved email UID {uid} to '{server_target_folder}' on server.")
-                # Update local database
-                email.folder_name = target_folder # Store the logical name
-                # Optionally clear flags if moving implies state change (e.g., moving from Inbox removes implicit 'Inbox' state)
-                # email.flags = [] # Example, adjust as needed
-                email.save(update_fields=['folder_name']) # Add 'flags' if modified
+                email.folder_name = target_folder
+                email.save(update_fields=['folder_name'])
                 return True
             else:
                 logger.error(f"Failed to move email UID {uid} to '{server_target_folder}' on server. Response: {response}")

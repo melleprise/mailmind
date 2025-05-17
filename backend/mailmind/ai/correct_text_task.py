@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 # Modify signature to accept optional context
 async def correct_text_with_ai(text_to_correct: str, user, 
                              original_subject: str | None = None, 
-                             original_body: str | None = None) -> str | dict | None:
+                             original_body: str | None = None,
+                             is_snippet: bool | None = None) -> str | dict | None:
     """
     Korrigiert entweder ein Snippet (plain) oder den gesamten Body+Betreff (JSON).
     Gibt korrigierten Text (Snippet) oder dict (full) zurück.
@@ -35,7 +36,10 @@ async def correct_text_with_ai(text_to_correct: str, user,
     context_string = "\n".join(context_parts) if context_parts else "(No context provided)"
 
     # --- Template-Auswahl ---
-    is_snippet = False
+    if is_snippet is not None:
+        pass  # Wert aus View übernehmen
+    else:
+        is_snippet = False
     if (original_body and text_to_correct.strip() not in original_body) and (original_subject and text_to_correct.strip() not in original_subject):
         is_snippet = True
     elif not original_body and not original_subject:
@@ -61,7 +65,7 @@ async def correct_text_with_ai(text_to_correct: str, user,
         'context': context_string or ""
     }
     try:
-        formatted_prompt = prompt_details['template'].format(**prompt_context)
+        formatted_prompt = prompt_details['prompt'].format(**prompt_context)
     except KeyError as e:
         logger.error(f"Missing variable in prompt template '{template_name}': {e}", exc_info=True)
         return None

@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
-from .views import RefreshSuggestionsView, AIActionViewSet, AISuggestionViewSet, RefineTextView
+from .views import RefreshSuggestionsView, AIActionViewSet, AISuggestionViewSet, RefineTextView, DraftViewSet
 from django.http import JsonResponse
 from django.db import connections
 from django.db.utils import OperationalError
@@ -15,6 +15,7 @@ router.register(r'suggestions', AISuggestionViewSet, basename='suggestion')
 router.register(r'contacts', views.ContactViewSet, basename='contact')
 router.register(r'log', views.AIRequestLogViewSet, basename='airequestlog')
 router.register(r'actions', AIActionViewSet, basename='aiaction')
+router.register(r'drafts', DraftViewSet, basename='draft')
 
 def health_check(request):
     try:

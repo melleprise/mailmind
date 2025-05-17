@@ -284,7 +284,7 @@ async def correct_text_with_ai(text_to_correct: str, user) -> str | None:
 
         prompt_context = {'text_to_correct': text_to_correct}
         try:
-            formatted_prompt = prompt_details['template'].format(**prompt_context)
+            formatted_prompt = prompt_details['prompt'].format(**prompt_context)
         except KeyError as e:
             logger.error(f"Missing variable in prompt template 'correct_text': {e}", exc_info=True)
             return None
@@ -348,7 +348,7 @@ async def refine_suggestion_with_prompt(text_to_refine: str, custom_prompt: str,
         }
         prompt_context.update(knowledge_context)
         try:
-            formatted_prompt = prompt_details['template'].format(**prompt_context)
+            formatted_prompt = prompt_details['prompt'].format(**prompt_context)
         except KeyError as e:
             logger.error(f"Missing variable in prompt template 'refine_suggestion': {e}", exc_info=True)
             return None
@@ -636,7 +636,7 @@ def generate_ai_suggestion(self, email_id: int, triggering_user_id: int):
         prompt_context.update(knowledge_context)
 
         try:
-            formatted_prompt = prompt_details['template'].format(**prompt_context)
+            formatted_prompt = prompt_details['prompt'].format(**prompt_context)
         except KeyError as e:
             logger.error(f"Missing variable in prompt template or knowledge fields: {e}", exc_info=True)
             # Schreibe Prompt-Log auch bei Fehler
@@ -645,7 +645,7 @@ def generate_ai_suggestion(self, email_id: int, triggering_user_id: int):
                 provider=prompt_details['provider'],
                 model_name=prompt_details['model_name'],
                 triggering_source='generate_suggestions_task',
-                prompt_text=prompt_details['template'],
+                prompt_text=prompt_details['prompt'],
                 is_success=False,
                 error_message=f"Missing variable in prompt template or knowledge fields: {e}"
             )
@@ -658,7 +658,7 @@ def generate_ai_suggestion(self, email_id: int, triggering_user_id: int):
                 provider=prompt_details['provider'],
                 model_name=prompt_details['model_name'],
                 triggering_source='generate_suggestions_task',
-                prompt_text=prompt_details['template'],
+                prompt_text=prompt_details['prompt'],
                 is_success=False,
                 error_message=f"Error formatting prompt template 'generate_suggestions': {e_format}"
             )

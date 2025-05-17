@@ -6,6 +6,7 @@ interface ActionButtonProps {
   label: string;
   onClick?: () => void;
   sx?: object;
+  stopPropagation?: boolean;
 }
 
 const actionButtonStyles = {
@@ -50,11 +51,14 @@ const actionButtonStyles = {
   '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' }
 };
 
-export const ActionButton: React.FC<ActionButtonProps> = ({ icon, label, onClick, sx }) => (
+export const ActionButton: React.FC<ActionButtonProps> = ({ icon, label, onClick, sx, stopPropagation }) => (
   <Paper
     elevation={0}
     sx={{ ...actionButtonStyles, ...sx }}
-    onClick={onClick}
+    onClick={e => {
+      if (stopPropagation) e.stopPropagation();
+      if (onClick) onClick();
+    }}
   >
     {icon}
     <span>{label}</span>

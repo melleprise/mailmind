@@ -1111,3 +1111,13 @@ export const freelanceCredentials = {
     }
   }
 }; 
+
+export const moveEmailToTrash = async (emailId: number): Promise<void> => {
+  try {
+    await apiClient.post(`/emails/${emailId}/move_to_trash/`);
+  } catch (error) {
+    // Fehler komplett schlucken, kein throw mehr
+    console.error('Fehler beim Verschieben in den Papierkorb:', error);
+    // Keine weitere Aktion, kein throw!
+  }
+}; 

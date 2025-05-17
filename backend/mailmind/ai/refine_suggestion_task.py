@@ -66,7 +66,7 @@ async def refine_suggestion_task(suggestion_id: str, custom_prompt: str, user_id
             'custom_prompt': custom_prompt,
         }
         try:
-            formatted_prompt = prompt_details['template'].format(**prompt_context)
+            formatted_prompt = prompt_details['prompt'].format(**prompt_context)
         except KeyError as e:
             logger.error(f"Missing variable in prompt template 'refine_suggestion': {e}", exc_info=True)
             return
@@ -170,7 +170,7 @@ async def refine_suggestion_with_prompt(text_to_refine: str, custom_prompt: str,
             'subject_text': subject_text or "(Kein Betreff vorhanden)" # Provide fallback text
         }
         try:
-            formatted_prompt = prompt_details['template'].format(**prompt_context)
+            formatted_prompt = prompt_details['prompt'].format(**prompt_context)
         except KeyError as e:
             logger.error(f"Missing variable in prompt template 'refine_suggestion': {e}", exc_info=True)
             return None

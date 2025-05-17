@@ -61,7 +61,7 @@ def generate_ai_suggestion(email_id: int, triggering_user_id: int = None):
             # Add any other variables the prompt template might need
         }
         try:
-            formatted_prompt = prompt_details['template'].format(**prompt_context)
+            formatted_prompt = prompt_details['prompt'].format(**prompt_context)
         except KeyError as e_format:
             logger.error(f"[TASK] Missing variable in prompt template 'generate_suggestions': {e_format}. Context provided: {list(prompt_context.keys())}", exc_info=True)
             email.ai_processed = False

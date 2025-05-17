@@ -64,9 +64,9 @@
     "fields": {
       "name": "correct_text_snippet",
       "description": "Korrigiert nur einen Ausschnitt/Text-Snippet. Gibt nur das korrigierte Snippet zurück.",
-      "prompt": "Korrigiere die Rechtschreib- und Grammatikfehler im folgenden Textausschnitt. Behalte die ursprüngliche Bedeutung und den Ton bei.\n\nZu korrigierender Ausschnitt:\n{text_snippet_to_correct}\n\nKontext (falls vorhanden):\n{context}\n\nGib ausschließlich den korrigierten Ausschnitt zurück – keine Erklärungen, keine Wiederholung des Prompts, keine Listen.",
+      "prompt": "Korrigiere die Rechtschreib- und Grammatikfehler im folgenden Textausschnitt. Behalte die ursprüngliche Bedeutung und den Ton bei.\n\nZu korrigierender Ausschnitt:\n{text_snippet_to_correct}\n\nKontext (falls vorhanden):\n{context}\n\nGib **ausschließlich** den korrigierten Ausschnitt zurück – **nur das korrigierte Wort oder die korrigierte Wortgruppe, exakt so viele Wörter wie im Original**. Keine Sätze, keine Erklärungen, keine Listen, keine Wiederholung des Prompts, kein Kontext, keine Anführungszeichen.",
       "provider": "groq",
-      "model_name": "llama3-70b-8192"
+      "model_name": "gemma2-9b-it"
     }
   }
 ] 

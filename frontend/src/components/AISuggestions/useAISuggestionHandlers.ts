@@ -7,6 +7,7 @@ import {
     refineTextDirectly,
 } from '../../services/api';
 import { CorrectingState } from '../types';
+import { useEmailStore } from '../../stores/emailStore';
 
 export const useAISuggestionHandlers = (
     suggestions: AISuggestion[],
@@ -184,9 +185,13 @@ export const useAISuggestionHandlers = (
                 if (result && result.refined_subject !== undefined && result.refined_body !== undefined) {
                     if (field_to_correct === 'subject') {
                         onDraftSubjectChange(result.refined_subject || "");
+                        setDraftSubjectStore(selectedEmailId, result.refined_subject || "");
+                        await saveDraftToBackend(selectedEmailId, result.refined_subject || "", draftBody);
                         console.log(`[AISuggestions Hook] Full Subject corrected via Direct API. Draft updated.`);
                     } else { // field_to_correct === 'body'
                         onDraftBodyChange(result.refined_body);
+                        setDraftBodyStore(selectedEmailId, result.refined_body);
+                        await saveDraftToBackend(selectedEmailId, draftSubject, result.refined_body);
                         console.log(`[AISuggestions Hook] Full Body corrected via Direct API. Draft updated.`);
                     }
                 } else {
@@ -196,28 +201,33 @@ export const useAISuggestionHandlers = (
             } 
             // Fall 2: Snippet korrigieren (wenn Text markiert ist)
             else if (selectedText && selectionStart !== undefined && selectionEnd !== undefined) {
-                console.log(`[AISuggestions Hook] Correcting SNIPPET in field: ${field_to_correct} via refineTextDirectly (using different prompt internally)`);
-                
-                // HINWEIS: Aktuell KANN refineTextDirectly KEINE Snippets. 
-                // Wir MÜSSTEN DAFÜR eine neue API-Funktion/Endpoint oder Anpassung haben.
-                // Temporär: Wir loggen eine Warnung und machen nichts.
-                // TODO: Implement snippet correction via direct text API if needed.
-                console.warn("[AISuggestions Hook] Snippet correction for draft text is not yet implemented via direct API.");
-                setCorrectionError("Snippet correction for manually entered text is not supported yet.");
-
-                // --- Auskommentierte Logik für potentielle Snippet-Korrektur über Direct API ---
-                /*
-                const result = await refineTextDirectly(
-                    "", // Spezieller Prompt oder Flag für Snippet-Korrektur?
-                    field_to_correct === 'subject' ? currentSubject : currentSubject, // Kontext
-                    field_to_correct === 'body' ? currentBody : currentBody, // Kontext
-                    true, // Korrektur
-                    selectedText // Das zu korrigierende Snippet
-                );
-                // Verarbeitung des Ergebnisses (bräuchte angepasste API-Antwort)
-                */
-               // --- Ende auskommentierte Logik ---
-                
+                console.log(`[AISuggestions Hook] Correcting SNIPPET in field: ${field_to_correct} via correctSuggestionField`);
+                const suggestion = suggestions[selectedSuggestionIndex ?? 0];
+                if (!suggestion) {
+                  setCorrectionError("No suggestion selected for snippet correction.");
+                  return;
+                }
+                try {
+                  const result = await correctSuggestionField(suggestion.id, field_to_correct, selectedText);
+                  if (isCorrectedSnippetResponse(result) && result.corrected_snippet) {
+                    // Ersetze das markierte Snippet im Draft durch das korrigierte Snippet
+                    if (field_to_correct === 'subject') {
+                      const newSubject = draftSubject.substring(0, selectionStart) + result.corrected_snippet + draftSubject.substring(selectionEnd);
+                      onDraftSubjectChange(newSubject);
+                      setDraftSubjectStore(selectedEmailId, newSubject);
+                      await saveDraftToBackend(selectedEmailId, newSubject, draftBody);
+                    } else {
+                      const newBody = draftBody.substring(0, selectionStart) + result.corrected_snippet + draftBody.substring(selectionEnd);
+                      onDraftBodyChange(newBody);
+                      setDraftBodyStore(selectedEmailId, newBody);
+                      await saveDraftToBackend(selectedEmailId, draftSubject, newBody);
+                    }
+                  } else {
+                    setCorrectionError("Snippet correction did not return expected result.");
+                  }
+                } catch (err) {
+                  setCorrectionError("Snippet correction failed.");
+                }
             }
 
         } catch (error: any) {
@@ -232,7 +242,8 @@ export const useAISuggestionHandlers = (
     }, [
         selectedEmailId, draftSubject, draftBody, correctingStates, 
         onDraftSubjectChange, onDraftBodyChange,
-        subjectInputRef, bodyTextareaRef // Entferne Suggestion-bezogene Abhängigkeiten
+        subjectInputRef, bodyTextareaRef, // Entferne Suggestion-bezogene Abhängigkeiten
+        suggestions, selectedSuggestionIndex
     ]);
 
     // Refine Button Handler
@@ -266,6 +277,9 @@ export const useAISuggestionHandlers = (
             if (refinedResult && refinedResult.refined_body !== undefined && refinedResult.refined_subject !== undefined) {
                 onDraftSubjectChange(refinedResult.refined_subject);
                 onDraftBodyChange(refinedResult.refined_body);
+                setDraftSubjectStore(selectedEmailId, refinedResult.refined_subject);
+                setDraftBodyStore(selectedEmailId, refinedResult.refined_body);
+                await saveDraftToBackend(selectedEmailId, refinedResult.refined_subject, refinedResult.refined_body);
                 setInternalCustomPrompt(""); // Clear the prompt on success
             } else {
                 console.error("[AISuggestions Hook] Refined text data is incomplete:", refinedResult);
@@ -288,6 +302,9 @@ export const useAISuggestionHandlers = (
         setInternalCustomPrompt,
     ]);
 
+    const setDraftSubjectStore = useEmailStore.getState().setDraftSubject;
+    const setDraftBodyStore = useEmailStore.getState().setDraftBody;
+
     return {
         correctingStates,
         correctionError,
@@ -301,4 +318,56 @@ export const useAISuggestionHandlers = (
         handleEditChange,
         handleSubjectChange,
     };
-}; 
+};
+
+// Hilfsfunktion: Draft speichern
+async function saveDraftToBackend(emailId: number, subject: string, body: string) {
+  const token = localStorage.getItem('token');
+  // 1. Draft-ID holen
+  const resp = await fetch(`/api/v1/drafts/by_email/?email_id=${emailId}`, {
+    headers: { 'Authorization': `Token ${token}` }
+  });
+  if (resp.ok) {
+    const data = await resp.json();
+    if (data && data.id) {
+      // PATCH
+      await fetch(`/api/v1/drafts/${data.id}/`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Token ${token}`
+        },
+        body: JSON.stringify({ subject, body })
+      });
+      return;
+    }
+  }
+  // Draft existiert nicht: anlegen
+  const postResp = await fetch(`/api/v1/drafts/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Token ${token}`
+    },
+    body: JSON.stringify({ email: emailId, subject, body })
+  });
+  if (!postResp.ok) {
+    // Wenn POST fehlschlägt (z.B. 409/500), nochmal GET+PATCH versuchen
+    const retryResp = await fetch(`/api/v1/drafts/by_email/?email_id=${emailId}`, {
+      headers: { 'Authorization': `Token ${token}` }
+    });
+    if (retryResp.ok) {
+      const retryData = await retryResp.json();
+      if (retryData && retryData.id) {
+        await fetch(`/api/v1/drafts/${retryData.id}/`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Token ${token}`
+          },
+          body: JSON.stringify({ subject, body })
+        });
+      }
+    }
+  }
+} 

@@ -2,6 +2,7 @@ from rest_framework import serializers
 from mailmind.core.models import EmailAccount, Email, Attachment, AISuggestion, Contact, AIRequestLog, AIAction
 from mailmind.prompt_templates.models import PromptTemplate
 import logging
+from .models import Draft
 
 logger = logging.getLogger(__name__)
 
@@ -269,3 +270,9 @@ class AIActionSerializer(serializers.ModelSerializer):
         fields = [
             "id", "name", "description", "is_active", "sort_order", "created_at", "updated_at", "prompts", "prompt_ids"
         ] 
+
+class DraftSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Draft
+        fields = ['id', 'user', 'email', 'subject', 'body', 'selected_suggestion_index', 'updated_at']
+        read_only_fields = ['id', 'user', 'updated_at'] 

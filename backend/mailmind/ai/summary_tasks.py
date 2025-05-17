@@ -91,7 +91,7 @@ def generate_summary_task(self, email_id: int, triggering_user_id: int | None = 
         prompt_context.update(knowledge_context)
 
         try:
-            formatted_prompt = prompt_details['template'].format(**prompt_context)
+            formatted_prompt = prompt_details['prompt'].format(**prompt_context)
         except KeyError as e_format:
             logger.error(f"[TASK_SUMMARY] Missing variable in prompt template 'generate_suggestions': {e_format}. Context provided: {list(prompt_context.keys())}", exc_info=True)
             cache.delete(cache_key)

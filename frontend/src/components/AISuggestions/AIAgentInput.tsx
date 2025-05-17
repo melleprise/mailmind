@@ -5,11 +5,12 @@ import { useEmailStore } from '../../stores/emailStore'; // Import store to get 
 interface DummyActionInputProps {
     isExpanded: boolean;
     onExpandRequest: () => void;
+    deleteDialogOpen?: boolean;
 }
 
 const GENERIC_DUMMY_ACTION_KEY = 'mailmind_dummyAction_generic';
 
-export const AIAgentInput: React.FC<DummyActionInputProps> = ({ isExpanded, onExpandRequest }) => {
+export const AIAgentInput: React.FC<DummyActionInputProps> = ({ isExpanded, onExpandRequest, deleteDialogOpen }) => {
     const selectedEmailId = useEmailStore((state) => state.selectedEmail?.id ?? null);
     const localStorageKey = selectedEmailId ? `mailmind_dummyAction_${selectedEmailId}` : GENERIC_DUMMY_ACTION_KEY;
 
@@ -60,6 +61,13 @@ export const AIAgentInput: React.FC<DummyActionInputProps> = ({ isExpanded, onEx
         }
     };
 
+    const handleInputClick = () => {
+        if (deleteDialogOpen) return;
+        if (!isExpanded) {
+            onExpandRequest();
+        }
+    };
+
     // console.log(`[DummyActionInput] Rendering with dummyText: '${dummyText}'`); // Log current render value
 
     return (
@@ -72,6 +80,7 @@ export const AIAgentInput: React.FC<DummyActionInputProps> = ({ isExpanded, onEx
                 borderRadius: 1,
                 position: 'relative',
             }}
+            onClick={handleInputClick}
         >
             <TextField
                 fullWidth
@@ -81,12 +90,6 @@ export const AIAgentInput: React.FC<DummyActionInputProps> = ({ isExpanded, onEx
                 placeholder="what do you want to do?"
                 variant="outlined"
                 value={dummyText}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    if (!isExpanded) {
-                        onExpandRequest();
-                    }
-                }}
                 onChange={handleDummyChange}
                 onKeyDown={handleDummyKeyDown}
                 sx={{

@@ -22,4 +22,5 @@ export interface AISuggestionsProps {
   onExpandRequest: () => void;
   isExpanded: boolean;
   onUpdateSuggestion: (id: string, data: Partial<Pick<AISuggestion, 'content' | 'suggested_subject'>>) => Promise<void>;
+  onDeleteEmail?: (id: number) => void;
 } 

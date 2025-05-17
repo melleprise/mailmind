@@ -24,7 +24,7 @@ import {
   Html as HtmlIcon,
   TextFields as TextFieldsIcon,
 } from '@mui/icons-material';
-import { getEmailById, markEmailRead, regenerateEmailSuggestions } from '../services/api';
+import { getEmailById, markEmailRead, regenerateEmailSuggestions, moveEmailToTrash } from '../services/api';
 import { format } from 'date-fns';
 import { useEmailStore } from '../stores/emailStore';
 // import { Email, AISuggestion, Attachment } from '../types'; // Cannot find module - commented out
@@ -99,6 +99,8 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId }) => {
   const [iframeSrcDoc, setIframeSrcDoc] = useState<string | undefined>(undefined);
   const [viewMode, setViewMode] = useState<'html' | 'text'>('html'); // State for view mode
   const [prompt, setPrompt] = useState('');
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Log component render entry
   console.log(`[EmailDetail Render] Start. emailId prop: ${emailId}, Store loading: ${loading}, Store selectedId: ${selectedEmail?.id}`);
@@ -285,6 +287,25 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId }) => {
     } catch (error) {
       console.error('Error marking email as spam:', error);
       alert('Fehler beim Markieren als Spam.'); // Simple error feedback
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!selectedEmail) return;
+    setDeleteLoading(true);
+    setDeleteError(null);
+    try {
+      await moveEmailToTrash(selectedEmail.id);
+      // Nach Erfolg: Liste neu laden und Detailansicht schließen
+      if (typeof window !== 'undefined') {
+        // Optional: Zustand/Store-Reset, falls nötig
+        clearSelectedEmail();
+        // Trigger für E-Mail-Liste (z.B. fetchEmailBatch) kann hier erfolgen, falls nicht über WebSocket
+      }
+    } catch (error) {
+      setDeleteError('Fehler beim Verschieben in den Papierkorb.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -535,6 +556,18 @@ const EmailDetail: React.FC<EmailDetailProps> = ({ emailId }) => {
           onSelect={(suggestion: AISuggestion) => setPrompt(suggestion.content)} // Example: Populate prompt on select + Add type
         />
       )} */}
+
+      <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <Button
+          variant="contained"
+          color="error"
+          onClick={handleDelete}
+          disabled={deleteLoading}
+        >
+          {deleteLoading ? 'Lösche...' : 'Löschen'}
+        </Button>
+        {deleteError && <Alert severity="error">{deleteError}</Alert>}
+      </Box>
     </Box>
   );
 };

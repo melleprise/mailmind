@@ -22,7 +22,7 @@ async def get_prompt_details(name: str) -> dict | None:
         template = await sync_to_async(PromptTemplate.objects.get)(name=name)
         
         prompt_details = {
-            'template': template.prompt,
+            'prompt': template.prompt,
             'provider': template.provider,
             'model_name': template.model_name
         }

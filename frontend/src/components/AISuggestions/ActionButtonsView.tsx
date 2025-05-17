@@ -6,6 +6,7 @@ import {
   Link as LinkIcon,
   Report as ReportIcon,
   MoveToInbox as MoveToInboxIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { ActionButton } from '../actions/ActionButton';
 
@@ -33,6 +34,8 @@ interface ActionButtonsViewProps {
   setEmailAction: (emailId: number, action: string | null) => void;
   isExpanded: boolean;
   onExpandRequest: () => void;
+  onDelete?: (emailId: number) => void;
+  deleteDialogOpen?: boolean;
 }
 
 // Import für Dummy Input
@@ -43,10 +46,18 @@ export const ActionButtonsView: React.FC<ActionButtonsViewProps> = ({
   setEmailAction,
   isExpanded,
   onExpandRequest,
+  onDelete,
+  deleteDialogOpen,
 }) => {
   const handleActionClick = (action: string | null) => {
     if (selectedEmailId) {
       setEmailAction(selectedEmailId, action);
+    }
+  };
+
+  const handleDeleteClick = () => {
+    if (selectedEmailId && onDelete) {
+      onDelete(selectedEmailId);
     }
   };
 
@@ -59,12 +70,13 @@ export const ActionButtonsView: React.FC<ActionButtonsViewProps> = ({
         <ActionButton icon={<ForwardToInboxIcon />} label="Weiterleiten" onClick={() => console.log('Action: Weiterleiten')} />
         <ActionButton icon={<ReportIcon />} label="Als Spam markieren" onClick={() => console.log('Action: Spam')} />
         <ActionButton icon={<MoveToInboxIcon />} label="Automatisch verschieben" onClick={() => console.log('Action: Verschieben')} />
+        <ActionButton icon={<DeleteIcon />} label="Löschen" onClick={handleDeleteClick} stopPropagation />
         <ActionButton icon={<LinkIcon />} label="Link 1 öffnen" onClick={() => console.log('Action: Link 1')} />
         <ActionButton icon={<LinkIcon />} label="Link 2 öffnen" onClick={() => console.log('Action: Link 2')} />
       </Box>
       {/* Dummy Input Area at the bottom */}
       <Box sx={{ flexShrink: 0, mt: 1 /* Abstand nach oben */ }}>
-        <AIAgentInput isExpanded={isExpanded} onExpandRequest={onExpandRequest} />
+        <AIAgentInput isExpanded={isExpanded} onExpandRequest={deleteDialogOpen ? () => {} : onExpandRequest} />
       </Box>
     </Box>
   );

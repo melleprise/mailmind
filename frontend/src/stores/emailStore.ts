@@ -62,6 +62,7 @@ interface EmailState {
   setDraftSubject: (emailId: number, subject: string) => void;
   setDraftBody: (emailId: number, body: string) => void;
   clearDraft: (emailId: number) => void;
+  removeEmail: (id: number) => void;
 }
 
 const LOCAL_STORAGE_KEY = 'mailmind_email_actions_and_drafts'; // Key angepasst
@@ -199,6 +200,13 @@ export const useEmailStore = create<EmailState>()(
             });
         },
         // --- Ende Draft Aktionen ---
+
+        /**
+         * Entfernt eine E-Mail sofort aus der Liste (z.B. nach Sofort-Löschen im UI).
+         */
+        removeEmail: (id: number) => {
+          set((state) => ({ emails: state.emails.filter(e => e.id !== id) }));
+        },
 
       }),
       {

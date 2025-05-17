@@ -88,7 +88,11 @@ export const Dashboard: React.FC = () => {
   const [hasMore, setHasMore] = useState<boolean>(false);
   const [isFindingStoredEmail, setIsFindingStoredEmail] = useState<boolean>(false);
   const [subsequentSearchFailed, setSubsequentSearchFailed] = useState<boolean>(false);
-  const [suggestionPanelExpanded, setSuggestionPanelExpanded] = useState<boolean>(false);
+  const LOCAL_STORAGE_PANEL_EXPANDED = 'suggestionPanelExpanded';
+  const [suggestionPanelExpanded, setSuggestionPanelExpanded] = useState<boolean>(() => {
+    const stored = localStorage.getItem(LOCAL_STORAGE_PANEL_EXPANDED);
+    return stored === null ? false : stored === 'true';
+  });
   const suggestionsPanelRef = useRef<HTMLDivElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -432,6 +436,27 @@ export const Dashboard: React.FC = () => {
       }
   }, []);
 
+  // Handler zum sofortigen Entfernen aus der lokalen Liste
+  const handleDeleteEmail = useCallback((id: number) => {
+    setEmails(prevEmails => {
+      const emailIndex = prevEmails.findIndex(e => e.id === id);
+      const newEmails = prevEmails.filter(e => e.id !== id);
+      // Wenn die gelöschte E-Mail selektiert war, wähle die nächste/andere
+      if (currentSelectedEmailIdValue === id) {
+        let nextSelectedId: number | null = null;
+        if (newEmails.length > 0) {
+          if (emailIndex >= 0 && emailIndex < newEmails.length) {
+            nextSelectedId = newEmails[emailIndex]?.id ?? null;
+          } else {
+            nextSelectedId = newEmails[newEmails.length - 1]?.id ?? null;
+          }
+        }
+        setSelectedEmailId(nextSelectedId);
+      }
+      return newEmails;
+    });
+  }, [currentSelectedEmailIdValue, setSelectedEmailId]);
+
   // WebSocket für E-Mail-Events (email.refresh)
   useEffect(() => {
     if (!isAuthenticated || !token) {
@@ -492,6 +517,11 @@ export const Dashboard: React.FC = () => {
     };
   }, [isAuthenticated, token, selectedFolder, selectedAccountId]);
 
+  // Speichere Panel-Status bei Änderung
+  useEffect(() => {
+    localStorage.setItem(LOCAL_STORAGE_PANEL_EXPANDED, suggestionPanelExpanded ? 'true' : 'false');
+  }, [suggestionPanelExpanded]);
+
   console.log('[Dashboard] Render END');
   return (
     <Box sx={{ display: 'flex', width: '100%', height: 'calc(100vh - 64px)', overflow: 'hidden', bgcolor: 'background.default', margin: 0, padding: 0 }}>
@@ -544,6 +574,7 @@ export const Dashboard: React.FC = () => {
           onExpandRequest={handleExpandPanelRequest}
           isExpanded={suggestionPanelExpanded}
           onUpdateSuggestion={handleUpdateSuggestion}
+          onDeleteEmail={handleDeleteEmail}
         />
       </Box>
     </Box>
